@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Identité QHSE Duo Sénégal — inspirée de la signalétique de sécurité
+  industrielle : bleu "atelier" profond, jaune de sécurité en accent rare,
+  registres à grille, chevrons noir/jaune comme unique signature visuelle.
+*/
+
+@layer base {
+  :root {
+    --background: 200 14% 96%;
+    --foreground: 200 28% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 200 28% 11%;
+    --primary: 197 74% 20%;
+    --primary-foreground: 210 25% 98%;
+    --secondary: 200 12% 92%;
+    --secondary-foreground: 200 28% 11%;
+    --muted: 200 12% 92%;
+    --muted-foreground: 200 10% 42%;
+    --accent: 46 92% 92%;
+    --accent-foreground: 32 70% 22%;
+    --destructive: 5 78% 40%;
+    --destructive-foreground: 210 25% 98%;
+    --border: 200 12% 85%;
+    --input: 200 12% 85%;
+    --ring: 197 74% 24%;
+    --radius: 0.375rem;
+
+    --hazard: 45 96% 55%;
+    --hazard-foreground: 200 28% 11%;
+
+    --font-display: "Archivo", "Arial Narrow", sans-serif;
+    --font-body: "Public Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Chevrons noir/jaune — signature visuelle de la marque, réservée aux
+   points d'entrée et d'urgence : bandeau des layouts, cartes d'auth,
+   badge "critique". Ne pas dupliquer ailleurs. */
+@layer components {
+  .hazard-stripe {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      hsl(var(--hazard)),
+      hsl(var(--hazard)) 10px,
+      hsl(var(--foreground)) 10px,
+      hsl(var(--foreground)) 20px
+    );
+  }
+
+  /* Fond "papier registre" très discret pour les zones de contenu QHSE :
+     évoque les formulaires et grilles techniques sans jamais distraire. */
+  .register-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .font-mono-tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
