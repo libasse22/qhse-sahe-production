@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const tauxResolution =
     stats.totalIncidents === 0
       ? 0
-      : Math.round(((stats.incidentsByStatus.resolu + stats.incidentsByStatus.cloture) / stats.totalIncidents) * 100);
+      : : Math.round((((stats.incidentsByStatus.resolu ?? 0) + (stats.incidentsByStatus.cloture ?? 0)) / stats.totalIncidents) * 100)
 
   return (
     <div className="space-y-6">
