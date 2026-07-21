@@ -105,7 +105,11 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
         stream.getTracks().forEach((track) => track.stop());
         const duration = (Date.now() - startTimeRef.current) / 1000;
         const blob = new Blob(chunksRef.current, { type: recordedMimeTypeRef.current });
-        setVoiceNote({ blob, durationSeconds: duration, previewUrl: URL.createObjectURL(blob) });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setVoiceNote({ blob, durationSeconds: duration, previewUrl: reader.result as string });
+        };
+        reader.readAsDataURL(blob);
       };
 
       mediaRecorderRef.current = recorder;
@@ -329,4 +333,5 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
     </form>
   );
 }
+
 
