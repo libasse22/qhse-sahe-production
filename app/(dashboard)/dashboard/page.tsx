@@ -24,6 +24,7 @@ export default async function DashboardPage() {
       <div>
         <h1 className="text-2xl font-semibold">Tableau de bord</h1>
         <p className="text-muted-foreground">
+      
           Bienvenue{profile?.fullName ? `, ${profile.fullName}` : ""}.
         </p>
       </div>
@@ -32,10 +33,11 @@ export default async function DashboardPage() {
         <StatCard label="Incidents déclarés" value={stats.totalIncidents} icon={Siren} />
         <StatCard
           label="Incidents en cours"
-          value={stats.incidentsByStatus.en_cours}
+          value={stats.incidentsByStatus.en_cours ?? 0}
           icon={AlertTriangle}
           accent="warning"
         />
+        
         <StatCard
           label="Actions en retard"
           value={stats.actionsEnRetard}
@@ -53,10 +55,10 @@ export default async function DashboardPage() {
           <CardContent>
             <DistributionBar
               items={[
-                { label: SEVERITY_LABELS.faible, value: stats.incidentsBySeverity.faible, colorClassName: "bg-emerald-400" },
-                { label: SEVERITY_LABELS.moyenne, value: stats.incidentsBySeverity.moyenne, colorClassName: "bg-amber-400" },
-                { label: SEVERITY_LABELS.elevee, value: stats.incidentsBySeverity.elevee, colorClassName: "bg-orange-500" },
-                { label: SEVERITY_LABELS.critique, value: stats.incidentsBySeverity.critique, colorClassName: "bg-red-500" },
+               { label: SEVERITY_LABELS.faible, value: stats.incidentsBySeverity.faible ?? 0, colorClassName: "bg-emerald-400" },
+                { label: SEVERITY_LABELS.moyenne, value: stats.incidentsBySeverity.moyenne ?? 0, colorClassName: "bg-amber-400" },
+                { label: SEVERITY_LABELS.elevee, value: stats.incidentsBySeverity.elevee ?? 0, colorClassName: "bg-orange-500" },
+                { label: SEVERITY_LABELS.critique, value: stats.incidentsBySeverity.critique ?? 0, colorClassName: "bg-red-500" },
               ]}
             />
           </CardContent>
@@ -69,10 +71,10 @@ export default async function DashboardPage() {
           <CardContent>
             <DistributionBar
               items={[
-                { label: STATUS_LABELS.declare, value: stats.incidentsByStatus.declare, colorClassName: "bg-slate-400" },
-                { label: STATUS_LABELS.en_cours, value: stats.incidentsByStatus.en_cours, colorClassName: "bg-amber-400" },
-                { label: STATUS_LABELS.resolu, value: stats.incidentsByStatus.resolu, colorClassName: "bg-emerald-400" },
-                { label: STATUS_LABELS.cloture, value: stats.incidentsByStatus.cloture, colorClassName: "bg-slate-600" },
+                { label: STATUS_LABELS.declare, value: stats.incidentsByStatus.declare ?? 0, colorClassName: "bg-slate-400" },
+                { label: STATUS_LABELS.en_cours, value: stats.incidentsByStatus.en_cours ?? 0, colorClassName: "bg-amber-400" },
+                { label: STATUS_LABELS.resolu, value: stats.incidentsByStatus.resolu ?? 0, colorClassName: "bg-emerald-400" },
+                { label: STATUS_LABELS.cloture, value: stats.incidentsByStatus.cloture ?? 0, colorClassName: "bg-slate-600" },
               ]}
             />
           </CardContent>
@@ -100,9 +102,9 @@ export default async function DashboardPage() {
           <CardContent>
             <DistributionBar
               items={[
-                { label: ACTION_STATUS_LABELS.a_faire, value: stats.actionsByStatus.a_faire, colorClassName: "bg-slate-400" },
-                { label: ACTION_STATUS_LABELS.en_cours, value: stats.actionsByStatus.en_cours, colorClassName: "bg-amber-400" },
-                { label: ACTION_STATUS_LABELS.termine, value: stats.actionsByStatus.termine, colorClassName: "bg-emerald-400" },
+                { label: ACTION_STATUS_LABELS.a_faire, value: stats.actionsByStatus.a_faire ?? 0, colorClassName: "bg-slate-400" },
+                { label: ACTION_STATUS_LABELS.en_cours, value: stats.actionsByStatus.en_cours ?? 0, colorClassName: "bg-amber-400" },
+                { label: ACTION_STATUS_LABELS.termine, value: stats.actionsByStatus.termine ?? 0, colorClassName: "bg-emerald-400" },
               ]}
             />
           </CardContent>
