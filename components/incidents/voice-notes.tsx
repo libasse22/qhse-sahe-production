@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { Mic, Play, Square, Trash2 } from "lucide-react";
@@ -62,7 +62,7 @@ export function VoiceNotes({
       recorder.onstop = async () => {
         stream.getTracks().forEach((track) => track.stop());
         const duration = (Date.now() - startTimeRef.current) / 1000;
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const blob = new Blob(chunksRef.current, { type: recordedMimeTypeRef.current });
         await uploadRecording(blob, duration);
       };
 
@@ -73,7 +73,7 @@ export function VoiceNotes({
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch {
-      setError("Impossible d'accéder au microphone. Vérifie les autorisations de ton navigateur.");
+      setError("Impossible d'accÃ©der au microphone. VÃ©rifie les autorisations de ton navigateur.");
     }
   }
 
@@ -98,7 +98,7 @@ export function VoiceNotes({
         .uploadToSignedUrl(target.path, target.token, blob);
 
       if (uploadError) {
-        setError("Échec de l'envoi du message vocal.");
+        setError("Ã‰chec de l'envoi du message vocal.");
         return;
       }
 
@@ -150,7 +150,7 @@ export function VoiceNotes({
               className={large ? "h-16 w-full text-lg" : ""}
             >
               <Mic className={large ? "h-6 w-6" : "h-4 w-4"} />
-              {isUploading ? "Envoi en cours…" : "Enregistrer un message vocal"}
+              {isUploading ? "Envoi en coursâ€¦" : "Enregistrer un message vocal"}
             </Button>
           ) : (
             <Button
@@ -161,7 +161,7 @@ export function VoiceNotes({
               className={large ? "h-16 w-full text-lg" : ""}
             >
               <Square className={large ? "h-6 w-6" : "h-4 w-4"} />
-              Arrêter — {formatDuration(seconds)}
+              ArrÃªter â€” {formatDuration(seconds)}
             </Button>
           )}
         </div>
@@ -195,3 +195,4 @@ export function VoiceNotes({
     </div>
   );
 }
+
