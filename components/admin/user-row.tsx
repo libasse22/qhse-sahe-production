@@ -5,14 +5,14 @@ import { assignUserRole, setUserStatus } from "@/lib/services/users.service";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
-import { STATUS_LABELS, type Profile } from "@/lib/types/auth";
+import  { STATUS_LABELS, type Profile, type UserStatus } from "@/lib/types/auth";
 import type { Role } from "@/lib/types/role";
 
-const STATUS_BADGE_VARIANT = {
+const STATUS_BADGE_VARIANT: Record<UserStatus, "outline" | "success" | "destructive"> = {
   pending: "outline",
   active: "success",
   suspended: "destructive",
-} as const;
+};
 
 export function UserRow({
   profile,
