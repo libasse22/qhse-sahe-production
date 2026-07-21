@@ -95,7 +95,7 @@ export function VoiceNotes({
       const supabase = createClient();
       const { error: uploadError } = await supabase.storage
         .from("incident-voice-notes")
-        .uploadToSignedUrl(target.path, target.token, blob);
+        .uploadToSignedUrl(target.path, target.token, blob, { contentType: blob.type });
 
       if (uploadError) {
         setError("Ã‰chec de l'envoi du message vocal.");
@@ -195,4 +195,5 @@ export function VoiceNotes({
     </div>
   );
 }
+
 

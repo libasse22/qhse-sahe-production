@@ -180,7 +180,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
           if ("error" in target) throw new Error(target.error);
           const { error: uploadError } = await supabase.storage
             .from("incident-voice-notes")
-            .uploadToSignedUrl(target.path, target.token, voiceNote.blob);
+            .uploadToSignedUrl(target.path, target.token, voiceNote.blob, { contentType: voiceNote.blob.type });
           if (uploadError) throw new Error("Ã©chec envoi vocal");
           const confirmResult = await confirmIncidentVoiceNote(incidentId, target.path, voiceNote.durationSeconds);
           if (confirmResult.error) throw new Error(confirmResult.error);
@@ -333,5 +333,6 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
     </form>
   );
 }
+
 
 
