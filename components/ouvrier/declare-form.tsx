@@ -176,7 +176,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
 
       if (voiceNote) {
         try {
-          const target = await createVoiceUploadTarget(incidentId);
+          const target = await createVoiceUploadTarget(incidentId, voiceNote.blob.type);
           if ("error" in target) throw new Error(target.error);
           const { error: uploadError } = await supabase.storage
             .from("incident-voice-notes")
@@ -333,6 +333,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
     </form>
   );
 }
+
 
 
 

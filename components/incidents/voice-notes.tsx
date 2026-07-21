@@ -86,7 +86,7 @@ export function VoiceNotes({
   async function uploadRecording(blob: Blob, duration: number) {
     setIsUploading(true);
     try {
-      const target = await createVoiceUploadTarget(incidentId);
+      const target = await createVoiceUploadTarget(incidentId, blob.type);
       if ("error" in target) {
         setError(target.error);
         return;
@@ -195,5 +195,6 @@ export function VoiceNotes({
     </div>
   );
 }
+
 
 

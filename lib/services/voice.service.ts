@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -46,16 +46,26 @@ export async function listIncidentVoiceNotes(incidentId: string): Promise<Incide
   );
 }
 
+function extensionForMimeType(mimeType: string | undefined): string {
+  if (!mimeType) return "webm";
+  if (mimeType.includes("mp4")) return "m4a";
+  if (mimeType.includes("aac")) return "aac";
+  if (mimeType.includes("ogg")) return "ogg";
+  return "webm";
+}
+
 export async function createVoiceUploadTarget(
   incidentId: string,
+  mimeType?: string,
 ): Promise<{ path: string; token: string } | { error: string }> {
   const supabase = await createClient();
-  const path = `${incidentId}/${Date.now()}-note.webm`;
+  const ext = extensionForMimeType(mimeType);
+  const path = `${incidentId}/${Date.now()}-note.${ext}`;
 
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
 
   if (error || !data) {
-    return { error: "Impossible de préparer l'envoi du message vocal." };
+    return { error: "Impossible de prÃ©parer l'envoi du message vocal." };
   }
 
   return { path: data.path, token: data.token };
@@ -72,7 +82,7 @@ export async function confirmIncidentVoiceNote(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Session expirée, reconnecte-toi." };
+  if (!user) return { error: "Session expirÃ©e, reconnecte-toi." };
 
   if (clientGeneratedId) {
     const { data: existing } = await supabase
@@ -92,7 +102,7 @@ export async function confirmIncidentVoiceNote(
   });
 
   if (error) {
-    return { error: "Message vocal envoyé mais impossible de l'enregistrer." };
+    return { error: "Message vocal envoyÃ© mais impossible de l'enregistrer." };
   }
 
   revalidatePath(`/ouvrier/incidents/${incidentId}`);
@@ -118,3 +128,4 @@ export async function deleteIncidentVoiceNote(
   revalidatePath(`/incidents/${incidentId}`);
   return { error: null };
 }
+
