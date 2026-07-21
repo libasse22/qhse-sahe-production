@@ -14,10 +14,10 @@ export default async function DashboardPage() {
   const profile = await getCurrentProfile();
   const stats = await getDashboardStats();
 
-  const tauxResolution =
+ const tauxResolution =
     stats.totalIncidents === 0
       ? 0
-      : : Math.round((((stats.incidentsByStatus.resolu ?? 0) + (stats.incidentsByStatus.cloture ?? 0)) / stats.totalIncidents) * 100)
+      : Math.round((((stats.incidentsByStatus.resolu ?? 0) + (stats.incidentsByStatus.cloture ?? 0)) / stats.totalIncidents) * 100);
 
   return (
     <div className="space-y-6">
