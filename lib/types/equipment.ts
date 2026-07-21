@@ -1,6 +1,6 @@
-import type { EquipmentStatus } from "./database.types";
+﻿import type { Enums } from "./database.types";
 
-export type { EquipmentStatus };
+export type EquipmentStatus = Enums<"equipment_status">;
 
 export interface Equipment {
   id: string;
@@ -14,7 +14,7 @@ export interface Equipment {
 }
 
 export const EQUIPMENT_STATUS_LABELS: Record<EquipmentStatus, string> = {
-  operationnel: "Opérationnel",
+  operationnel: "OpÃ©rationnel",
   maintenance: "En maintenance",
   hors_service: "Hors service",
 };
@@ -26,3 +26,4 @@ export const EQUIPMENT_STATUS_BADGE: Record<EquipmentStatus, "success" | "warnin
 };
 
 export const EQUIPMENT_STATUS_ORDER: EquipmentStatus[] = ["operationnel", "maintenance", "hors_service"];
+

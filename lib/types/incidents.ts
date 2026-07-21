@@ -1,6 +1,8 @@
-import type { IncidentCategory, IncidentSeverity, IncidentStatus } from "./database.types";
+﻿import type { Enums } from "./database.types";
 
-export type { IncidentCategory, IncidentSeverity, IncidentStatus };
+export type IncidentCategory = Enums<"incident_category">;
+export type IncidentSeverity = Enums<"incident_severity">;
+export type IncidentStatus = Enums<"incident_status">;
 
 export interface Incident {
   id: string;
@@ -31,17 +33,17 @@ export interface IncidentPhoto {
 export const CATEGORY_LABELS: Record<IncidentCategory, string> = {
   accident_travail: "Accident du travail",
   presque_accident: "Presque-accident",
-  risque_identifie: "Risque identifié",
-  non_conformite: "Non-conformité",
+  risque_identifie: "Risque identifiÃ©",
+  non_conformite: "Non-conformitÃ©",
   environnement: "Environnement",
-  materiel: "Incident matériel",
+  materiel: "Incident matÃ©riel",
   autre: "Autre",
 };
 
 export const SEVERITY_LABELS: Record<IncidentSeverity, string> = {
   faible: "Faible",
   moyenne: "Moyenne",
-  elevee: "Élevée",
+  elevee: "Ã‰levÃ©e",
   critique: "Critique",
 };
 
@@ -56,10 +58,10 @@ export const SEVERITY_BADGE_VARIANT: Record<
 };
 
 export const STATUS_LABELS: Record<IncidentStatus, string> = {
-  declare: "Déclaré",
+  declare: "DÃ©clarÃ©",
   en_cours: "En cours de traitement",
-  resolu: "Résolu",
-  cloture: "Clôturé",
+  resolu: "RÃ©solu",
+  cloture: "ClÃ´turÃ©",
 };
 
 export const STATUS_BADGE_VARIANT: Record<
@@ -83,3 +85,4 @@ export const CATEGORY_ORDER: IncidentCategory[] = [
   "materiel",
   "autre",
 ];
+

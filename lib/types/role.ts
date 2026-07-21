@@ -1,4 +1,6 @@
-import type { UserRole } from "./database.types";
+﻿import type { Enums } from "./database.types";
+
+type UserRole = Enums<"user_role">;
 
 export interface Permission {
   id: string;
@@ -21,3 +23,4 @@ export const BASE_BUCKET_LABELS: Record<UserRole, string> = {
   manager_qhse: "Espace Responsable QHSE",
   employe: "Espace Terrain (Ouvrier)",
 };
+

@@ -1,6 +1,7 @@
-import type { UserRole, UserStatus } from "./database.types";
+﻿import type { Enums } from "./database.types";
 
-export type { UserRole, UserStatus };
+export type UserRole = Enums<"user_role">;
+export type UserStatus = Enums<"user_status">;
 
 export interface Profile {
   id: string;
@@ -16,7 +17,7 @@ export interface Profile {
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrateur",
   manager_qhse: "Manager QHSE",
-  employe: "Employé",
+  employe: "EmployÃ©",
 };
 
 export const STATUS_LABELS: Record<UserStatus, string> = {
@@ -24,3 +25,4 @@ export const STATUS_LABELS: Record<UserStatus, string> = {
   active: "Actif",
   suspended: "Suspendu",
 };
+

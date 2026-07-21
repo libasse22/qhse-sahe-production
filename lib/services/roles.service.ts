@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { roleSchema } from "@/lib/validation/role.schema";
 import type { ActionResult } from "@/lib/services/auth.service";
 import type { Permission, Role } from "@/lib/types/role";
-import type { UserRole } from "@/lib/types/database.types";
+import type { UserRole } from "@/lib/types/auth";
 
 export async function listPermissions(): Promise<Permission[]> {
   const supabase = await createClient();

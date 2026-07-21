@@ -39,7 +39,7 @@ function toAction(row: ActionRow): ActionCorrective {
 
 /** Actions visibles par l'utilisateur courant (RLS : les siennes, ou tout si QHSE/admin). */
 export async function listMyActions(): Promise<ActionCorrective[]> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as any;
   const { data, error } = await supabase
     .from("actions_correctives")
     .select(ACTION_SELECT)
@@ -50,7 +50,7 @@ export async function listMyActions(): Promise<ActionCorrective[]> {
 }
 
 export async function listActionsForIncident(incidentId: string): Promise<ActionCorrective[]> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as any;
   const { data, error } = await supabase
     .from("actions_correctives")
     .select(ACTION_SELECT)
@@ -72,7 +72,7 @@ export async function createAction(incidentId: string, formData: FormData): Prom
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
   }
 
-  const supabase = await createClient();
+  const supabase = (await createClient()) as any;
   const { description, responsableId, echeance } = parsed.data;
 
   const { error } = await supabase.from("actions_correctives").insert({
@@ -80,7 +80,7 @@ export async function createAction(incidentId: string, formData: FormData): Prom
     description,
     responsable_id: responsableId,
     echeance,
-  });
+  } as never);
 
   if (error) {
     return { error: "Impossible de créer l'action corrective." };
@@ -101,7 +101,7 @@ export async function updateActionStatus(
   incidentId: string,
   status: ActionStatus,
 ): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as any;
   const { error } = await supabase
     .from("actions_correctives")
     .update({ status })
@@ -118,7 +118,7 @@ export async function updateActionStatus(
 }
 
 export async function deleteAction(actionId: string, incidentId: string): Promise<ActionResult> {
-  const supabase = await createClient();
+  const supabase = (await createClient()) as any;
   const { error } = await supabase.from("actions_correctives").delete().eq("id", actionId);
 
   if (error) {
