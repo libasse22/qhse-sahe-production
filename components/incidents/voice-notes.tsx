@@ -39,6 +39,7 @@ export function VoiceNotes({
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
+  const recordedMimeTypeRef = useRef<string>("audio/webm");
 
   useEffect(() => {
     return () => {
@@ -52,6 +53,7 @@ export function VoiceNotes({
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
+      recordedMimeTypeRef.current = recorder.mimeType || "audio/webm";
 
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
