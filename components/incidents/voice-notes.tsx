@@ -1,5 +1,16 @@
 ﻿"use client";
 
+function pickSupportedMimeType(): string {
+  const candidates = ["audio/mp4", "audio/webm", "audio/ogg", "audio/wav"];
+  for (const type of candidates) {
+    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+  return "";
+}
+
+
 import { useEffect, useRef, useState } from "react";
 import { Mic, Play, Square, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -51,7 +62,8 @@ export function VoiceNotes({
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const chosenMimeType = pickSupportedMimeType();
+      const recorder = chosenMimeType ? new MediaRecorder(stream, { mimeType: chosenMimeType }) : new MediaRecorder(stream);
       chunksRef.current = [];
       recordedMimeTypeRef.current = recorder.mimeType || "audio/webm";
 
@@ -195,6 +207,7 @@ export function VoiceNotes({
     </div>
   );
 }
+
 
 
 
