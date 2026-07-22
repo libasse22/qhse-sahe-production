@@ -688,11 +688,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           company_id: string | null
           created_at: string
           email: string
           full_name: string
           id: string
+          poste: string | null
           role: Database["public"]["Enums"]["user_role"]
           role_id: string | null
           site_id: string | null
@@ -700,11 +702,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           company_id?: string | null
           created_at?: string
           email: string
           full_name?: string
           id: string
+          poste?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           role_id?: string | null
           site_id?: string | null
@@ -712,11 +716,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           company_id?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
+          poste?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           role_id?: string | null
           site_id?: string | null

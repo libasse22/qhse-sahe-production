@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 function pickSupportedMimeType(): string {
   const candidates = ["audio/mp4", "audio/webm", "audio/ogg", "audio/wav"];
@@ -85,7 +85,7 @@ export function VoiceNotes({
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch {
-      setError("Impossible d'accÃ©der au microphone. VÃ©rifie les autorisations de ton navigateur.");
+      setError("Impossible d'accéder au microphone. Vérifie les autorisations de ton navigateur.");
     }
   }
 
@@ -110,7 +110,7 @@ export function VoiceNotes({
         .uploadToSignedUrl(target.path, target.token, blob, { contentType: blob.type });
 
       if (uploadError) {
-        setError("Ã‰chec de l'envoi du message vocal.");
+        setError("Échec de l'envoi du message vocal.");
         return;
       }
 
@@ -162,7 +162,7 @@ export function VoiceNotes({
               className={large ? "h-16 w-full text-lg" : ""}
             >
               <Mic className={large ? "h-6 w-6" : "h-4 w-4"} />
-              {isUploading ? "Envoi en coursâ€¦" : "Enregistrer un message vocal"}
+              {isUploading ? "Envoi en cours⬦" : "Enregistrer un message vocal"}
             </Button>
           ) : (
             <Button
@@ -173,7 +173,7 @@ export function VoiceNotes({
               className={large ? "h-16 w-full text-lg" : ""}
             >
               <Square className={large ? "h-6 w-6" : "h-4 w-4"} />
-              ArrÃªter â€” {formatDuration(seconds)}
+              Arrêter — {formatDuration(seconds)}
             </Button>
           )}
         </div>

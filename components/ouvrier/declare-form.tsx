@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 function pickSupportedMimeType(): string {
   const candidates = ["audio/mp4", "audio/webm", "audio/ogg", "audio/wav"];
@@ -131,7 +131,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
       setSeconds(0);
       timerRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch {
-      setError("Impossible d'accÃ©der au microphone. VÃ©rifie les autorisations de ton navigateur.");
+      setError("Impossible d'accéder au microphone. Vérifie les autorisations de ton navigateur.");
     }
   }
 
@@ -178,7 +178,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
           const { error: uploadError } = await supabase.storage
             .from("incident-photos")
             .uploadToSignedUrl(target.path, target.token, photo.blob);
-          if (uploadError) throw new Error("Ã©chec envoi photo");
+          if (uploadError) throw new Error("échec envoi photo");
           const confirmResult = await confirmIncidentPhoto(incidentId, target.path);
           if (confirmResult.error) throw new Error(confirmResult.error);
         } catch {
@@ -193,7 +193,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
           const { error: uploadError } = await supabase.storage
             .from("incident-voice-notes")
             .uploadToSignedUrl(target.path, target.token, voiceNote.blob, { contentType: voiceNote.blob.type });
-          if (uploadError) throw new Error("Ã©chec envoi vocal");
+          if (uploadError) throw new Error("échec envoi vocal");
           const confirmResult = await confirmIncidentVoiceNote(incidentId, target.path, voiceNote.durationSeconds);
           if (confirmResult.error) throw new Error(confirmResult.error);
         } catch {
@@ -203,14 +203,14 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
 
       if (attachmentErrors.length > 0) {
         setStatusMessage(
-          `Signalement envoyÃ©. L'ajout de ${attachmentErrors.join(" et ")} a Ã©chouÃ© â€” tu peux rÃ©essayer depuis la fiche du signalement.`,
+          `Signalement envoyé. L'ajout de ${attachmentErrors.join(" et ")} a échoué — tu peux réessayer depuis la fiche du signalement.`,
         );
       }
 
       router.push(`/ouvrier/incidents/${incidentId}`);
     } catch {
-      // Pas de rÃ©seau (ou coupure pendant l'envoi) : on garde tout en local,
-      // rien n'est perdu â€” l'envoi se fera automatiquement plus tard.
+      // Pas de réseau (ou coupure pendant l'envoi) : on garde tout en local,
+      // rien n'est perdu — l'envoi se fera automatiquement plus tard.
       await queueIncident({
         severity,
         location,
@@ -228,7 +228,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <p className="mb-3 text-center text-xl font-semibold">GravitÃ© ?</p>
+        <p className="mb-3 text-center text-xl font-semibold">Gravité ?</p>
         <SeverityPicker onChange={setSeverity} />
       </div>
 
@@ -242,13 +242,13 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
           className="h-16 w-full text-lg"
         >
           <MapPin className="h-6 w-6" />
-          {isLocating ? "Localisationâ€¦" : "ðŸ“ OÃ¹ es-tu ?"}
+          {isLocating ? "Localisation…" : "📍 Où es-tu ?"}
         </Button>
         <input
           type="text"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="Ou Ã©cris le lieu (ex : EntrepÃ´t B)"
+          placeholder="Ou écris le lieu (ex : Entrepôt B)"
           className="mt-3 h-14 w-full rounded-xl border-2 border-input bg-background px-4 text-lg"
         />
       </div>
@@ -258,7 +258,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          placeholder="Explique en quelques mots (facultatif)â€¦"
+          placeholder="Explique en quelques mots (facultatif)⬦"
           className="text-lg"
         />
       </div>
@@ -305,7 +305,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
           ) : (
             <Button type="button" variant="destructive" size="lg" onClick={stopRecording} className="h-16 w-full text-lg">
               <Square className="h-6 w-6" />
-              ArrÃªter â€” {formatDuration(seconds)}
+              Arrêter — {formatDuration(seconds)}
             </Button>
           )
         ) : (
@@ -332,7 +332,7 @@ export function DeclareForm({ equipmentId }: { equipmentId?: string }) {
 
       <Button type="submit" size="lg" disabled={isSubmitting} className="h-20 w-full text-2xl font-bold">
         <Send className="h-7 w-7" />
-        {isSubmitting ? "Envoiâ€¦" : "ENVOYER"}
+        {isSubmitting ? "Envoi⬦" : "ENVOYER"}
       </Button>
 
       <button

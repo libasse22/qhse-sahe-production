@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -65,7 +65,7 @@ export async function createVoiceUploadTarget(
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
 
   if (error || !data) {
-    return { error: "Impossible de prÃ©parer l'envoi du message vocal." };
+    return { error: "Impossible de préparer l'envoi du message vocal." };
   }
 
   return { path: data.path, token: data.token };
@@ -82,7 +82,7 @@ export async function confirmIncidentVoiceNote(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Session expirÃ©e, reconnecte-toi." };
+  if (!user) return { error: "Session expirée, reconnecte-toi." };
 
   if (clientGeneratedId) {
     const { data: existing } = await supabase
@@ -102,7 +102,7 @@ export async function confirmIncidentVoiceNote(
   });
 
   if (error) {
-    return { error: "Message vocal envoyÃ© mais impossible de l'enregistrer." };
+    return { error: "Message vocal envoyé mais impossible de l'enregistrer." };
   }
 
   revalidatePath(`/ouvrier/incidents/${incidentId}`);

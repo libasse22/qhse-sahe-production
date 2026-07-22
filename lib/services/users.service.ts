@@ -12,6 +12,8 @@ function toProfile(row: {
   role: UserRole;
   status: "pending" | "active" | "suspended";
   role_id: string | null;
+  poste: string | null;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }): Profile {
@@ -22,6 +24,8 @@ function toProfile(row: {
     role: row.role,
     status: row.status,
     roleId: row.role_id,
+    poste: row.poste,
+    avatarUrl: row.avatar_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -181,3 +185,4 @@ export async function setUserStatus(
   revalidatePath("/admin/utilisateurs-en-attente");
   return { error: null };
 }
+

@@ -1,4 +1,4 @@
-﻿import type { Enums } from "./database.types";
+import type { Enums } from "./database.types";
 
 export type EquipmentStatus = Enums<"equipment_status">;
 
@@ -14,7 +14,7 @@ export interface Equipment {
 }
 
 export const EQUIPMENT_STATUS_LABELS: Record<EquipmentStatus, string> = {
-  operationnel: "OpÃ©rationnel",
+  operationnel: "Opérationnel",
   maintenance: "En maintenance",
   hors_service: "Hors service",
 };

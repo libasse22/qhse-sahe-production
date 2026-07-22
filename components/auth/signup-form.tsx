@@ -36,6 +36,14 @@ export function SignupForm() {
           required
         />
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="poste">Poste</Label>
+        <Input id="poste" name="poste" type="text" placeholder="ex: Maçon, Chauffeur&" />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="avatar">Photo de profil</Label>
+        <Input id="avatar" name="avatar" type="file" accept="image/*" />
+      </div>
       {state.error && (
         <p className="text-sm text-destructive" role="alert">
           {state.error}
@@ -51,3 +59,4 @@ export function SignupForm() {
     </form>
   );
 }
+

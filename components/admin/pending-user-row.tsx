@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { approveUser, rejectUser } from "@/lib/services/users.service";
@@ -32,7 +32,7 @@ export function PendingUserRow({ profile }: { profile: Profile }) {
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-3 pr-4">
-        <p className="font-medium">{profile.fullName || "—"}</p>
+        <p className="font-medium">{profile.fullName || "â€”"}</p>
         <p className="text-sm text-muted-foreground">{profile.email}</p>
       </td>
       <td className="py-3 pr-4">
@@ -63,3 +63,4 @@ export function PendingUserRow({ profile }: { profile: Profile }) {
     </tr>
   );
 }
+

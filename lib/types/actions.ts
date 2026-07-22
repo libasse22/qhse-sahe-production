@@ -1,4 +1,4 @@
-﻿import type { Enums } from "./database.types";
+import type { Enums } from "./database.types";
 
 export type ActionStatus = Enums<"action_status">;
 
@@ -16,9 +16,9 @@ export interface ActionCorrective {
 }
 
 export const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
-  a_faire: "Ã€ faire",
+  a_faire: "ì faire",
   en_cours: "En cours",
-  termine: "TerminÃ©e",
+  termine: "Terminée",
 };
 
 export const ACTION_STATUS_BADGE_VARIANT: Record<
@@ -32,7 +32,7 @@ export const ACTION_STATUS_BADGE_VARIANT: Record<
 
 export const ACTION_STATUS_ORDER: ActionStatus[] = ["a_faire", "en_cours", "termine"];
 
-/** Une action est en retard si son Ã©chÃ©ance est dÃ©passÃ©e et qu'elle n'est pas terminÃ©e. */
+/** Une action est en retard si son échéance est dépassée et qu'elle n'est pas terminée. */
 export function isActionEnRetard(action: Pick<ActionCorrective, "echeance" | "status">): boolean {
   if (action.status === "termine") return false;
   return new Date(action.echeance) < new Date(new Date().toDateString());

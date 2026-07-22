@@ -23,8 +23,10 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
 
   const supabase = await createClient();
   const { fullName, email, password } = parsed.data;
+  const poste = formData.get("poste");
+  const avatar = formData.get("avatar") as File | null;
 
-  const { error } = await supabase.auth.signUp({
+  const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { full_name: fullName } },
@@ -32,6 +34,31 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
 
   if (error) {
     return { error: traduireErreurSupabase(error.message) };
+  }
+
+  const userId = signUpData.user?.id;
+
+  if (userId) {
+    let avatarUrl: string | null = null;
+
+    if (avatar && avatar.size > 0) {
+      const path = `${userId}/${Date.now()}-${avatar.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, avatar, { contentType: avatar.type });
+      if (!uploadError) {
+        const { data: publicUrl } = supabase.storage.from("avatars").getPublicUrl(path);
+        avatarUrl = publicUrl.publicUrl;
+      }
+    }
+
+    await supabase
+      .from("profiles")
+      .update({
+        poste: typeof poste === "string" && poste.trim() ? poste.trim() : null,
+        avatar_url: avatarUrl,
+      })
+      .eq("id", userId);
   }
 
   redirect("/en-attente");
@@ -109,6 +136,8 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     role: data.role,
     status: data.status,
     roleId: data.role_id,
+    poste: data.poste,
+    avatarUrl: data.avatar_url,
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -126,3 +155,4 @@ function traduireErreurSupabase(message: string): string {
   }
   return message;
 }
+
