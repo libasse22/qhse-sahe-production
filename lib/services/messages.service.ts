@@ -137,7 +137,7 @@ export async function listMessages(conversationId: string): Promise<Message[]> {
 
 export async function sendMessage(
   conversationId: string,
-  content: string,
+  content: string | null,
 ): Promise<ActionResult & { messageId?: string }> {
   const supabase = await createClient();
   const {
@@ -147,7 +147,7 @@ export async function sendMessage(
 
   const { data, error } = await supabase
     .from("messages")
-    .insert({ conversation_id: conversationId, sender_id: user.id, content })
+    .insert({ conversation_id: conversationId, sender_id: user.id, content } as any)
     .select("id")
     .single();
 
@@ -342,6 +342,7 @@ export async function getOrCreateIncidentConversation(
   revalidatePath(`/incidents/${incidentId}`);
   return { conversationId: (conv as any).id };
 }
+
 
 
 

@@ -84,6 +84,8 @@ export function MessageThread({
                     {att.mimeType?.startsWith("image/") && att.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={att.url} alt={att.fileName} className="max-h-48 rounded-md" />
+                    ) : att.mimeType?.startsWith("audio/") && att.url ? (
+                      <audio controls src={att.url} className="h-9 max-w-full" />
                     ) : (
                       <a href={att.url ?? "#"} target="_blank" rel="noreferrer" className="text-xs underline">
                         {att.fileName}
@@ -103,3 +105,4 @@ export function MessageThread({
     </div>
   );
 }
+
