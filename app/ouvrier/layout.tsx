@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
-import { LogOut, Plus, ListChecks, ShieldCheck } from "lucide-react";
+﻿import { redirect } from "next/navigation";
+import { LogOut, Plus, ListChecks, ShieldCheck, MessageSquare } from "lucide-react";
 import { getCurrentProfile, signOut } from "@/lib/services/auth.service";
 import { getAppSettings } from "@/lib/services/settings.service";
 import { OfflineIndicator } from "@/components/ouvrier/offline-indicator";
@@ -33,7 +33,7 @@ export default async function OuvrierLayout({ children }: { children: React.Reac
         <div className="flex items-center gap-1">
           <NotificationBell userId={profile.id} />
           <form action={signOut}>
-            <button type="submit" aria-label="Déconnexion" className="rounded-full p-2 hover:bg-accent">
+            <button type="submit" aria-label="DÃ©connexion" className="rounded-full p-2 hover:bg-accent">
               <LogOut className="h-6 w-6 text-muted-foreground" />
             </button>
           </form>
@@ -47,7 +47,7 @@ export default async function OuvrierLayout({ children }: { children: React.Reac
       <nav className="sticky bottom-0 flex border-t border-border bg-card">
         <a href="/ouvrier/declarer" className="flex flex-1 flex-col items-center gap-1 py-3 text-primary">
           <Plus className="h-7 w-7" />
-          <span className="text-sm font-medium">Déclarer</span>
+          <span className="text-sm font-medium">DÃ©clarer</span>
         </a>
         <a href="/ouvrier/mes-declarations" className="flex flex-1 flex-col items-center gap-1 py-3 text-muted-foreground">
           <ListChecks className="h-7 w-7" />
@@ -57,7 +57,12 @@ export default async function OuvrierLayout({ children }: { children: React.Reac
           <ShieldCheck className="h-7 w-7" />
           <span className="text-sm font-medium">Politique</span>
         </a>
+        <a href="/messagerie" className="flex flex-1 flex-col items-center gap-1 py-3 text-muted-foreground">
+          <MessageSquare className="h-7 w-7" />
+          <span className="text-sm font-medium">Messages</span>
+        </a>
       </nav>
     </div>
   );
 }
+
