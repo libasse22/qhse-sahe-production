@@ -1,7 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { deleteMessage } from "@/lib/services/messages.service";
 import type { Message } from "@/lib/types/messaging";
 
 function formatTime(dateStr: string): string {
@@ -75,7 +77,20 @@ export function MessageThread({
         messages.map((msg) => {
           const isMine = msg.senderId === currentUserId;
           return (
-            <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+            <div key={msg.id} className={`group flex items-center gap-2 ${isMine ? "justify-end" : "justify-start"}`}>
+              {isMine && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+                    deleteMessage(msg.id, conversationId);
+                  }}
+                  className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                  aria-label="Supprimer le message"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
               <div className={`max-w-[75%] rounded-lg px-3 py-2 ${isMine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                 {!isMine && <p className="mb-0.5 text-xs font-medium opacity-70">{msg.senderName}</p>}
                 {msg.content && <p className="whitespace-pre-wrap text-sm">{msg.content}</p>}
@@ -105,4 +120,5 @@ export function MessageThread({
     </div>
   );
 }
+
 

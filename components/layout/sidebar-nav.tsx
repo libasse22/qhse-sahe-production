@@ -36,6 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   { href: "/actions", label: "Actions correctives", icon: ClipboardList },
   { href: "/politique", label: "Politique QHSE", icon: FileText },
+  { href: "/reglement-interieur", label: "Reglement interieur", icon: FileText },
   { href: "/audits", label: "Audits internes", icon: ClipboardCheck },
   { href: "/risques", label: "Registre des risques", icon: AlertOctagon },
   { href: "/objectifs", label: "Objectifs & indicateurs", icon: Target },
@@ -118,4 +119,5 @@ export function SidebarNav({
     </nav>
   );
 }
+
 

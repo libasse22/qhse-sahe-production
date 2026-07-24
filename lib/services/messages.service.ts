@@ -193,6 +193,30 @@ export async function confirmMessageAttachment(
   return { error: null };
 }
 
+export async function deleteMessage(messageId: string, conversationId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Session expiree, reconnecte-toi." };
+
+  const { data: msg } = await supabase
+    .from("messages")
+    .select("sender_id")
+    .eq("id", messageId)
+    .single();
+
+  if (!msg || (msg as any).sender_id !== user.id) {
+    return { error: "Tu ne peux supprimer que tes propres messages." };
+  }
+
+  const { error } = await supabase.from("messages").delete().eq("id", messageId);
+  if (error) return { error: "Impossible de supprimer ce message." };
+
+  revalidatePath(`/messagerie/${conversationId}`);
+  return { error: null };
+}
+
 export async function markConversationRead(conversationId: string): Promise<void> {
   const supabase = await createClient();
   const {
@@ -342,6 +366,7 @@ export async function getOrCreateIncidentConversation(
   revalidatePath(`/incidents/${incidentId}`);
   return { conversationId: (conv as any).id };
 }
+
 
 
 
