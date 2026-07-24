@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,6 +18,7 @@ import {
   FolderOpen,
   Settings,
   Wrench,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,22 +26,23 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** Code de permission requis pour voir ce lien. Absent = visible par tous les rôles de l'espace QHSE. */
+  /** Code de permission requis pour voir ce lien. Absent = visible par tous les rÃ´les de l'espace QHSE. */
   permission?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/incidents", label: "Incidents", icon: Siren },
+  { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   { href: "/actions", label: "Actions correctives", icon: ClipboardList },
   { href: "/politique", label: "Politique QHSE", icon: FileText },
   { href: "/audits", label: "Audits internes", icon: ClipboardCheck },
   { href: "/risques", label: "Registre des risques", icon: AlertOctagon },
   { href: "/objectifs", label: "Objectifs & indicateurs", icon: Target },
-  { href: "/parties-interessees", label: "Parties intéressées", icon: Handshake },
+  { href: "/parties-interessees", label: "Parties intÃ©ressÃ©es", icon: Handshake },
   { href: "/revues-de-direction", label: "Revues de direction", icon: Presentation },
   { href: "/documents", label: "Documents", icon: FolderOpen },
-  { href: "/equipements", label: "Équipements", icon: Wrench },
+  { href: "/equipements", label: "Ã‰quipements", icon: Wrench },
   {
     href: "/admin/utilisateurs-en-attente",
     label: "Comptes en attente",
@@ -55,13 +57,13 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/admin/roles",
-    label: "Rôles & permissions",
+    label: "RÃ´les & permissions",
     icon: ShieldCheck,
     permission: "roles.manage",
   },
   {
     href: "/parametres",
-    label: "Paramètres",
+    label: "ParamÃ¨tres",
     icon: Settings,
     permission: "settings.manage",
   },
@@ -116,3 +118,4 @@ export function SidebarNav({
     </nav>
   );
 }
+
