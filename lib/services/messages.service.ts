@@ -249,7 +249,7 @@ export async function createDirectConversation(
     .select("id")
     .single();
 
-  if (error || !conv) return { error: "Impossible de creer la conversation." };
+  if (error || !conv) return { error: "Impossible de creer la conversation: " + (error?.message ?? "inconnue") };
 
   await supabase.from("conversation_participants").insert([
     { conversation_id: (conv as any).id, user_id: user.id },
@@ -349,3 +349,4 @@ export async function getOrCreateIncidentConversation(
   revalidatePath(`/incidents/${incidentId}`);
   return { conversationId: (conv as any).id };
 }
+
