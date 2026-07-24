@@ -243,20 +243,16 @@ export async function createDirectConversation(
     }
   }
 
-  const { data: conv, error } = await supabase
-    .from("conversations")
-    .insert({ type: "direct", created_by: user.id } as any)
-    .select("id")
-    .single();
+  const { data: convId, error } = await supabase.rpc("create_conversation_with_participants", {
+    p_type: "direct",
+    p_title: null,
+    p_incident_id: null,
+    p_participant_ids: [user.id, otherUserId],
+  });
 
-  if (error || !conv) return { error: "Impossible de creer la conversation: " + (error?.message ?? "inconnue") + " | user.id=" + user.id };
+  if (error || !convId) return { error: "Impossible de creer la conversation: " + (error?.message ?? "inconnue") };
 
-  await supabase.from("conversation_participants").insert([
-    { conversation_id: (conv as any).id, user_id: user.id },
-    { conversation_id: (conv as any).id, user_id: otherUserId },
-  ] as any);
-
-  return { conversationId: (conv as any).id };
+  return { conversationId: convId as string };
 }
 
 export async function createGroupConversation(
@@ -269,21 +265,18 @@ export async function createGroupConversation(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Session expiree, reconnecte-toi." };
 
-  const { data: conv, error } = await supabase
-    .from("conversations")
-    .insert({ type: "group", title, created_by: user.id } as any)
-    .select("id")
-    .single();
-
-  if (error || !conv) return { error: "Impossible de creer le groupe." };
-
   const uniqueIds = Array.from(new Set([...participantIds, user.id]));
-  await supabase
-    .from("conversation_participants")
-    .insert(uniqueIds.map((id) => ({ conversation_id: (conv as any).id, user_id: id })) as any);
+  const { data: convId, error } = await supabase.rpc("create_conversation_with_participants", {
+    p_type: "group",
+    p_title: title,
+    p_incident_id: null,
+    p_participant_ids: uniqueIds,
+  });
+
+  if (error || !convId) return { error: "Impossible de creer le groupe: " + (error?.message ?? "inconnue") };
 
   revalidatePath("/messagerie");
-  return { conversationId: (conv as any).id };
+  return { conversationId: convId as string };
 }
 
 export async function getOrCreateIncidentConversation(
@@ -349,5 +342,6 @@ export async function getOrCreateIncidentConversation(
   revalidatePath(`/incidents/${incidentId}`);
   return { conversationId: (conv as any).id };
 }
+
 
 
