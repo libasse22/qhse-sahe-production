@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -42,14 +42,14 @@ async function toPolicy(
     version: row.version,
     isActive: row.is_active,
     createdBy: row.created_by,
-    createdByName: row.author?.full_name || "—",
+    createdByName: row.author?.full_name || "â€”",
     createdAt: row.created_at,
     pdfStoragePath: row.pdf_storage_path,
     pdfUrl,
   };
 }
 
-/** Version actuellement diffusée (une seule à la fois), ou null si aucune. */
+/** Version actuellement diffusÃ©e (une seule Ã  la fois), ou null si aucune. */
 export async function getActivePolicy(): Promise<QhsePolicy | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -73,7 +73,7 @@ export async function listPolicies(): Promise<QhsePolicy[]> {
   return Promise.all((data as unknown as PolicyRow[]).map((row) => toPolicy(supabase, row)));
 }
 
-/** L'utilisateur courant a-t-il déjà accusé réception de cette version ? */
+/** L'utilisateur courant a-t-il dÃ©jÃ  accusÃ© rÃ©ception de cette version ? */
 export async function hasAcknowledged(policyId: string): Promise<boolean> {
   const supabase = await createClient();
   const {
@@ -97,13 +97,13 @@ export async function acknowledgePolicy(policyId: string): Promise<ActionResult>
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Session expirée, reconnecte-toi." };
+  if (!user) return { error: "Session expirÃ©e, reconnecte-toi." };
 
   const { error } = await supabase
     .from("policy_acknowledgements")
     .insert({ policy_id: policyId, user_id: user.id });
 
-  // Contrainte unique : déjà accusé réception, on considère que c'est un succès idempotent.
+  // Contrainte unique : dÃ©jÃ  accusÃ© rÃ©ception, on considÃ¨re que c'est un succÃ¨s idempotent.
   if (error && error.code !== "23505") {
     return { error: "Impossible d'enregistrer ta confirmation de lecture." };
   }
@@ -119,7 +119,7 @@ export interface CreatePolicyResult {
 }
 
 /**
- * Publie une nouvelle version active de la politique QHSE. Réservé aux
+ * Publie une nouvelle version active de la politique QHSE. RÃ©servÃ© aux
  * managers QHSE / admin par la policy RLS qhse_policies_insert_qhse.
  */
 export async function createPolicy(formData: FormData): Promise<CreatePolicyResult> {
@@ -137,7 +137,7 @@ export async function createPolicy(formData: FormData): Promise<CreatePolicyResu
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Session expirée, reconnecte-toi." };
+  if (!user) return { error: "Session expirÃ©e, reconnecte-toi." };
 
   const { data: last } = await supabase
     .from("qhse_policies")
@@ -165,12 +165,29 @@ export async function createPolicy(formData: FormData): Promise<CreatePolicyResu
     return { error: "Impossible de publier la politique." };
   }
 
+  const { data: activeUsers } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("status", "active")
+    .neq("id", user.id);
+
+  if (activeUsers && activeUsers.length > 0) {
+    await supabase.from("notifications").insert(
+      (activeUsers as any[]).map((u) => ({
+        user_id: u.id,
+        title: "Nouvelle politique QHSE",
+        message: title,
+        link: "/politique",
+      })),
+    );
+  }
+
   revalidatePath("/politique");
   revalidatePath("/ouvrier/politique");
   return { error: null, id: data.id };
 }
 
-/** Prépare une URL de dépôt signée pour joindre un PDF à une politique (bucket partagé avec le module Documents). */
+/** PrÃ©pare une URL de dÃ©pÃ´t signÃ©e pour joindre un PDF Ã  une politique (bucket partagÃ© avec le module Documents). */
 export async function createPolicyPdfUploadTarget(
   fileName: string,
 ): Promise<{ path: string; token: string } | { error: string }> {
@@ -179,12 +196,12 @@ export async function createPolicyPdfUploadTarget(
   const path = `politiques/${Date.now()}-${safeName}`;
 
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
-  if (error || !data) return { error: "Impossible de préparer l'envoi du PDF." };
+  if (error || !data) return { error: "Impossible de prÃ©parer l'envoi du PDF." };
 
   return { path: data.path, token: data.token };
 }
 
-/** Relie le PDF envoyé à la version de politique nouvellement créée. */
+/** Relie le PDF envoyÃ© Ã  la version de politique nouvellement crÃ©Ã©e. */
 export async function attachPolicyPdf(policyId: string, storagePath: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { error } = await supabase
@@ -193,7 +210,7 @@ export async function attachPolicyPdf(policyId: string, storagePath: string): Pr
     .eq("id", policyId);
 
   if (error) {
-    return { error: "Politique publiée, mais impossible de joindre le PDF." };
+    return { error: "Politique publiÃ©e, mais impossible de joindre le PDF." };
   }
 
   revalidatePath("/politique");
@@ -201,7 +218,7 @@ export async function attachPolicyPdf(policyId: string, storagePath: string): Pr
   return { error: null };
 }
 
-/** Taux de lecture de la version active, réservé manager QHSE / admin (RLS). */
+/** Taux de lecture de la version active, rÃ©servÃ© manager QHSE / admin (RLS). */
 export async function getAcknowledgementStats(policyId: string): Promise<PolicyAcknowledgementStats> {
   const supabase = await createClient();
 
@@ -221,3 +238,4 @@ export async function getAcknowledgementStats(policyId: string): Promise<PolicyA
       .map((u) => ({ id: u.id, fullName: u.full_name, email: u.email })),
   };
 }
+

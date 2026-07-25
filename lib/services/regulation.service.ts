@@ -120,6 +120,23 @@ export async function createRegulation(formData: FormData): Promise<CreateRegula
     return { error: "Impossible de publier le reglement interieur." };
   }
 
+  const { data: activeUsers } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("status", "active")
+    .neq("id", user.id);
+
+  if (activeUsers && activeUsers.length > 0) {
+    await supabase.from("notifications").insert(
+      (activeUsers as any[]).map((u) => ({
+        user_id: u.id,
+        title: "Nouveau reglement interieur",
+        message: title.trim(),
+        link: "/reglement-interieur",
+      })),
+    );
+  }
+
   revalidatePath("/reglement-interieur");
   revalidatePath("/ouvrier/reglement-interieur");
   return { error: null, id: (data as any).id };
@@ -153,3 +170,4 @@ export async function attachRegulationPdf(regulationId: string, storagePath: str
   revalidatePath("/ouvrier/reglement-interieur");
   return { error: null };
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -10,7 +10,7 @@ import type { AppNotification } from "@/lib/types/notification";
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 1) return "à l'instant";
+  if (minutes < 1) return "Ã  l'instant";
   if (minutes < 60) return `il y a ${minutes} min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `il y a ${hours} h`;
@@ -18,13 +18,37 @@ function timeAgo(iso: string): string {
   return `il y a ${days} j`;
 }
 
+function playNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    // Son non disponible (navigateur restrictif) : on ignore silencieusement.
+  }
+}
+
 export function NotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasMountedRef = useRef(false);
 
   useEffect(() => {
-    listMyNotifications().then(setNotifications);
+    listMyNotifications().then((list) => {
+      setNotifications(list);
+      hasMountedRef.current = true;
+    });
 
     const supabase = createClient();
     const channel = supabase
@@ -33,6 +57,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         () => {
+          if (hasMountedRef.current) playNotificationSound();
           listMyNotifications().then(setNotifications);
         },
       )
@@ -130,3 +155,4 @@ export function NotificationBell({ userId }: { userId: string }) {
     </div>
   );
 }
+

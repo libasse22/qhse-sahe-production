@@ -158,6 +158,31 @@ export async function sendMessage(
     .update({ updated_at: new Date().toISOString() } as any)
     .eq("id", conversationId);
 
+  const { data: senderProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const { data: participants } = await supabase
+    .from("conversation_participants")
+    .select("user_id")
+    .eq("conversation_id", conversationId)
+    .neq("user_id", user.id);
+
+  if (participants && participants.length > 0) {
+    const senderName = (senderProfile as any)?.full_name || "Un utilisateur";
+    const preview = content ? content.slice(0, 80) : "Message vocal";
+    await supabase.from("notifications").insert(
+      (participants as any[]).map((p) => ({
+        user_id: p.user_id,
+        title: senderName,
+        message: preview,
+        link: `/messagerie/${conversationId}`,
+      })),
+    );
+  }
+
   revalidatePath("/messagerie");
   revalidatePath(`/messagerie/${conversationId}`);
   return { error: null, messageId: (data as any).id };
@@ -366,6 +391,8 @@ export async function getOrCreateIncidentConversation(
   revalidatePath(`/incidents/${incidentId}`);
   return { conversationId: (conv as any).id };
 }
+
+
 
 
 
