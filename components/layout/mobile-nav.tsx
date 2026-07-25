@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, ShieldCheck } from "lucide-react";
+import { Menu, X, ShieldCheck, LogOut } from "lucide-react";
 import { NAV_ITEMS } from "@/components/layout/sidebar-nav";
+import { signOut } from "@/lib/services/auth.service";
 import { cn } from "@/lib/utils";
 
 export function MobileNav({
@@ -43,7 +44,7 @@ export function MobileNav({
 
       {open && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="w-72 max-w-[85vw] flex-col overflow-y-auto bg-card">
+          <div className="flex w-72 max-w-[85vw] flex-col overflow-y-auto bg-card">
             <div className="flex items-center justify-between border-b border-border px-4 py-4">
               <span className="font-display text-lg font-bold tracking-tight">{appName}</span>
               <button
@@ -77,6 +78,17 @@ export function MobileNav({
                 );
               })}
             </ul>
+            <div className="mt-auto border-t border-border px-3 py-3">
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Deconnexion
+                </button>
+              </form>
+            </div>
           </div>
           <button
             type="button"
@@ -89,3 +101,4 @@ export function MobileNav({
     </div>
   );
 }
+

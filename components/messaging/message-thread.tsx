@@ -91,7 +91,7 @@ export function MessageThread({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               )}
-              <div className={`max-w-[75%] rounded-lg px-3 py-2 ${isMine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+              <div className={`max-w-[85%] break-words rounded-lg px-3 py-2 sm:max-w-[75%] ${isMine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                 {!isMine && <p className="mb-0.5 text-xs font-medium opacity-70">{msg.senderName}</p>}
                 {msg.content && <p className="whitespace-pre-wrap text-sm">{msg.content}</p>}
                 {msg.attachments.map((att) => (
@@ -120,5 +120,6 @@ export function MessageThread({
     </div>
   );
 }
+
 
 
