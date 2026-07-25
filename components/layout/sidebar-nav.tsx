@@ -30,7 +30,7 @@ interface NavItem {
   permission?: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/incidents", label: "Incidents", icon: Siren },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
@@ -84,7 +84,7 @@ export function SidebarNav({
   const items = NAV_ITEMS.filter((item) => !item.permission || permissionSet.has(item.permission));
 
   return (
-    <nav className="flex h-full w-60 flex-col border-r border-border bg-card">
+    <nav className="hidden h-full w-60 flex-col border-r border-border bg-card md:flex">
       <div className="hazard-stripe h-1.5 w-full" aria-hidden="true" />
       <div className="mb-6 flex items-center gap-2 px-6 py-5">
         {logoUrl ? (
@@ -119,5 +119,6 @@ export function SidebarNav({
     </nav>
   );
 }
+
 
 
