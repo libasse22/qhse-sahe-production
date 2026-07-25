@@ -25,7 +25,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <SidebarNav permissions={Array.from(permissions)} appName={settings.appName} logoUrl={settings.logoUrl} />
-      <MobileNav permissions={Array.from(permissions)} appName={settings.appName} logoUrl={settings.logoUrl} />
+      <MobileNav permissions={Array.from(permissions)} appName={settings.appName} logoUrl={settings.logoUrl} userId={profile.id} />
       <div className="flex flex-1 flex-col overflow-x-hidden">
         <header className="hidden h-16 items-center justify-end gap-2 border-b border-border bg-card px-6 md:flex">
           <NotificationBell userId={profile.id} />
@@ -36,4 +36,5 @@ export default async function DashboardLayout({
     </div>
   );
 }
+
 

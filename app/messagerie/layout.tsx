@@ -31,3 +31,4 @@ export default async function MessagerieLayout({ children }: { children: React.R
     </div>
   );
 }
+

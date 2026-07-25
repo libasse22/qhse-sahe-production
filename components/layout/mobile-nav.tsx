@@ -6,16 +6,19 @@ import { usePathname } from "next/navigation";
 import { Menu, X, ShieldCheck, LogOut } from "lucide-react";
 import { NAV_ITEMS } from "@/components/layout/sidebar-nav";
 import { signOut } from "@/lib/services/auth.service";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { cn } from "@/lib/utils";
 
 export function MobileNav({
   permissions,
   appName,
   logoUrl,
+  userId,
 }: {
   permissions: string[];
   appName: string;
   logoUrl: string | null;
+  userId: string;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -40,6 +43,9 @@ export function MobileNav({
           <ShieldCheck className="h-5 w-5 text-primary" />
         )}
         <span className="font-display text-base font-bold tracking-tight">{appName}</span>
+      </div>
+      <div className="ml-auto">
+        <NotificationBell userId={userId} />
       </div>
 
       {open && (
@@ -101,4 +107,5 @@ export function MobileNav({
     </div>
   );
 }
+
 

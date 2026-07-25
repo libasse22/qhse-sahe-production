@@ -18,10 +18,35 @@ function timeAgo(iso: string): string {
   return `il y a ${days} j`;
 }
 
-function playNotificationSound() {
+let sharedAudioContext: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
   try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioContextClass();
+    if (!sharedAudioContext) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      sharedAudioContext = new AudioContextClass();
+    }
+    return sharedAudioContext;
+  } catch {
+    return null;
+  }
+}
+
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") ctx.resume();
+  };
+  window.addEventListener("click", unlock, { once: true });
+  window.addEventListener("touchstart", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+}
+
+function playNotificationSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  try {
+    if (ctx.state === "suspended") ctx.resume();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
@@ -34,7 +59,7 @@ function playNotificationSound() {
     osc.start();
     osc.stop(ctx.currentTime + 0.35);
   } catch {
-    // Son non disponible (navigateur restrictif) : on ignore silencieusement.
+    // Son non disponible : on ignore silencieusement.
   }
 }
 
@@ -155,4 +180,5 @@ export function NotificationBell({ userId }: { userId: string }) {
     </div>
   );
 }
+
 
