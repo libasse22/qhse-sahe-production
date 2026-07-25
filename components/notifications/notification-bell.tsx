@@ -68,6 +68,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
+  const instanceIdRef = useRef(Math.random().toString(36).slice(2));
 
   useEffect(() => {
     listMyNotifications().then((list) => {
@@ -77,7 +78,7 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     const supabase = createClient();
     const channel = supabase
-      .channel(`notifications-${userId}`)
+      .channel(`notifications-${userId}-${instanceIdRef.current}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
@@ -180,5 +181,6 @@ export function NotificationBell({ userId }: { userId: string }) {
     </div>
   );
 }
+
 
 
