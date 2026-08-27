@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { signOut } from "@/lib/services/auth.service";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,9 @@ export function UserNav({ profile }: { profile: Profile }) {
           {ROLE_LABELS[profile.role]}
         </Badge>
       </div>
+      <Button asChild variant="ghost" size="sm">
+        <Link href="/mon-compte">Mon compte</Link>
+      </Button>
       <form action={signOut}>
         <Button type="submit" variant="outline" size="sm">
           Déconnexion
@@ -20,3 +24,6 @@ export function UserNav({ profile }: { profile: Profile }) {
     </div>
   );
 }
+
+
+

@@ -1,4 +1,4 @@
-﻿import { notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft, Users, Siren } from "lucide-react";
 import Link from "next/link";
 import { getConversation, listMessages, markConversationRead } from "@/lib/services/messages.service";

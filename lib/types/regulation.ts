@@ -1,4 +1,4 @@
-﻿export interface InternalRegulation {
+export interface InternalRegulation {
   id: string;
   title: string;
   content: string | null;

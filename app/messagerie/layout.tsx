@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/services/auth.service";
 import { getAppSettings } from "@/lib/services/settings.service";
 import { getCurrentPermissions } from "@/lib/services/roles.service";

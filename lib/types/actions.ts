@@ -11,12 +11,14 @@ export interface ActionCorrective {
   responsableName: string;
   echeance: string;
   status: ActionStatus;
+  inspectionRunId?: string | null;
+  inspectionItemId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export const ACTION_STATUS_LABELS: Record<ActionStatus, string> = {
-  a_faire: "ì faire",
+  a_faire: "À faire",
   en_cours: "En cours",
   termine: "Terminée",
 };
@@ -37,4 +39,3 @@ export function isActionEnRetard(action: Pick<ActionCorrective, "echeance" | "st
   if (action.status === "termine") return false;
   return new Date(action.echeance) < new Date(new Date().toDateString());
 }
-

@@ -1,4 +1,4 @@
-﻿export type ConversationType = "direct" | "group" | "incident";
+export type ConversationType = "direct" | "group" | "incident";
 
 export interface Conversation {
   id: string;

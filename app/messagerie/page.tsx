@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { MessageSquarePlus } from "lucide-react";
 import { listMyConversations } from "@/lib/services/messages.service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useTransition } from "react";
 import { approveUser, rejectUser } from "@/lib/services/users.service";

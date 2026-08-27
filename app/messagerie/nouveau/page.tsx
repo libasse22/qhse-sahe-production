@@ -1,4 +1,4 @@
-﻿import { listActiveUsers } from "@/lib/services/users.service";
+import { listActiveUsers } from "@/lib/services/users.service";
 import { getCurrentProfile } from "@/lib/services/auth.service";
 import { NewConversationForm } from "@/components/messaging/new-conversation-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

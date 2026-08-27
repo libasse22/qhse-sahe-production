@@ -1,4 +1,4 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -77,7 +77,7 @@ export async function listMyConversations(): Promise<Conversation[]> {
       lastMessage: lastMsg?.content ?? null,
       lastMessageAt: lastMsg?.created_at ?? null,
       unreadCount,
-      participants: (participants ?? []).map((p: any) => ({
+      participants: (participants ?? []).filter((p: any) => p.user).map((p: any) => ({
         id: p.user.id,
         fullName: p.user.full_name,
         avatarUrl: p.user.avatar_url,

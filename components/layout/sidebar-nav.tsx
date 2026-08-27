@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,8 +17,9 @@ import {
   Presentation,
   FolderOpen,
   Settings,
-  Wrench,
   MessageSquare,
+  CheckSquare,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,24 +27,25 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  /** Code de permission requis pour voir ce lien. Absent = visible par tous les rÃ´les de l'espace QHSE. */
+  /** Code de permission requis pour voir ce lien. Absent = visible par tous les rôles de l'espace QHSE. */
   permission?: string;
 }
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/inspections", label: "Inspections & Checklists", icon: CheckSquare },
   { href: "/incidents", label: "Incidents", icon: Siren },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
   { href: "/actions", label: "Actions correctives", icon: ClipboardList },
   { href: "/politique", label: "Politique QHSE", icon: FileText },
-  { href: "/reglement-interieur", label: "Reglement interieur", icon: FileText },
+  { href: "/reglement-interieur", label: "Règlement intérieur", icon: FileText },
   { href: "/audits", label: "Audits internes", icon: ClipboardCheck },
   { href: "/risques", label: "Registre des risques", icon: AlertOctagon },
   { href: "/objectifs", label: "Objectifs & indicateurs", icon: Target },
-  { href: "/parties-interessees", label: "Parties intÃ©ressÃ©es", icon: Handshake },
+  { href: "/parties-interessees", label: "Parties intéressées", icon: Handshake },
   { href: "/revues-de-direction", label: "Revues de direction", icon: Presentation },
   { href: "/documents", label: "Documents", icon: FolderOpen },
-  { href: "/equipements", label: "Ã‰quipements", icon: Wrench },
+  { href: "/equipements", label: "Équipements", icon: Wrench },
   {
     href: "/admin/utilisateurs-en-attente",
     label: "Comptes en attente",
@@ -58,13 +60,13 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/admin/roles",
-    label: "RÃ´les & permissions",
+    label: "Rôles & permissions",
     icon: ShieldCheck,
     permission: "roles.manage",
   },
   {
     href: "/parametres",
-    label: "ParamÃ¨tres",
+    label: "Paramètres",
     icon: Settings,
     permission: "settings.manage",
   },
@@ -103,13 +105,13 @@ export function SidebarNav({
               <Link
                 href={href}
                 className={cn(
-                  "flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2 text-sm font-medium transition-all duration-150 ease-in-out",
                   isActive
-                    ? "border-l-[hsl(var(--hazard))] bg-secondary text-foreground"
-                    : "border-l-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                    ? "border-l-[hsl(var(--hazard))] bg-secondary/90 text-foreground font-semibold shadow-sm"
+                    : "border-l-transparent text-muted-foreground hover:bg-accent/80 hover:text-accent-foreground hover:translate-x-0.5",
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className={cn("h-4 w-4 transition-transform duration-150", isActive ? "text-primary scale-110" : "opacity-80")} />
                 {label}
               </Link>
             </li>

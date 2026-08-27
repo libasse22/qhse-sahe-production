@@ -1,4 +1,4 @@
-﻿import { getActiveRegulation } from "@/lib/services/regulation.service";
+import { getActiveRegulation } from "@/lib/services/regulation.service";
 import { ShieldCheck, FileDown } from "lucide-react";
 
 export default async function OuvrierReglementPage() {

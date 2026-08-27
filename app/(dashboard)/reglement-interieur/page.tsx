@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { FileText, Plus, FileDown } from "lucide-react";
 import { getCurrentPermissions } from "@/lib/services/roles.service";
 import { getActiveRegulation, listRegulations } from "@/lib/services/regulation.service";

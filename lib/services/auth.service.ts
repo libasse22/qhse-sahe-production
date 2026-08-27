@@ -143,6 +143,47 @@ export async function getCurrentProfile(): Promise<Profile | null> {
   };
 }
 
+export async function requestPasswordReset(formData: FormData): Promise<ActionResult> {
+  const email = formData.get("email");
+  if (typeof email !== "string" || !email.trim()) {
+    return { error: "Adresse e-mail invalide." };
+  }
+
+  const supabase = await createClient();
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${siteUrl}/reinitialiser-mot-de-passe`,
+  });
+
+  if (error) {
+    return { error: traduireErreurSupabase(error.message) };
+  }
+
+  return { error: null };
+}
+
+export async function updatePassword(formData: FormData): Promise<ActionResult> {
+  const password = formData.get("password");
+  const confirmPassword = formData.get("confirmPassword");
+
+  if (typeof password !== "string" || password.length < 8) {
+    return { error: "Le mot de passe doit contenir au moins 8 caracteres." };
+  }
+  if (password !== confirmPassword) {
+    return { error: "Les mots de passe ne correspondent pas." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    return { error: traduireErreurSupabase(error.message) };
+  }
+
+  return { error: null };
+}
+
 function traduireErreurSupabase(message: string): string {
   if (message.includes("Invalid login credentials")) {
     return "E-mail ou mot de passe incorrect";
@@ -155,4 +196,5 @@ function traduireErreurSupabase(message: string): string {
   }
   return message;
 }
+
 

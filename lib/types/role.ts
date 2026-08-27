@@ -1,4 +1,4 @@
-﻿import type { Enums } from "./database.types";
+import type { Enums } from "./database.types";
 
 type UserRole = Enums<"user_role">;
 

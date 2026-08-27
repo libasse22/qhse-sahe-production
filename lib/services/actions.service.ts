@@ -16,6 +16,8 @@ interface ActionRow {
   responsable_id: string;
   echeance: string;
   status: ActionStatus;
+  inspection_run_id?: string | null;
+  inspection_item_id?: string | null;
   created_at: string;
   updated_at: string;
   incident: { title: string } | null;
@@ -32,6 +34,8 @@ function toAction(row: ActionRow): ActionCorrective {
     responsableName: row.responsable?.full_name || "—",
     echeance: row.echeance,
     status: row.status,
+    inspectionRunId: row.inspection_run_id ?? null,
+    inspectionItemId: row.inspection_item_id ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -55,6 +59,18 @@ export async function listActionsForIncident(incidentId: string): Promise<Action
     .from("actions_correctives")
     .select(ACTION_SELECT)
     .eq("incident_id", incidentId)
+    .order("echeance", { ascending: true });
+
+  if (error || !data) return [];
+  return (data as unknown as ActionRow[]).map(toAction);
+}
+
+export async function listActionsForInspectionRun(inspectionRunId: string): Promise<ActionCorrective[]> {
+  const supabase = (await createClient()) as any;
+  const { data, error } = await supabase
+    .from("actions_correctives")
+    .select(ACTION_SELECT)
+    .eq("inspection_run_id", inspectionRunId)
     .order("echeance", { ascending: true });
 
   if (error || !data) return [];
@@ -93,8 +109,7 @@ export async function createAction(incidentId: string, formData: FormData): Prom
 
 /**
  * Mise à jour du statut d'une action. Le responsable peut faire évoluer sa
- * propre action ; manager QHSE / admin peuvent tout modifier (cf. trigger
- * protect_action_fields côté base qui verrouille les autres champs).
+ * propre action ; manager QHSE / admin peuvent tout modifier.
  */
 export async function updateActionStatus(
   actionId: string,
