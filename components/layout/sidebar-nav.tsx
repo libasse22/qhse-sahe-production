@@ -18,6 +18,7 @@ import {
   FolderOpen,
   Settings,
   MessageSquare,
+  FileCheck,
   CheckSquare,
   Wrench,
 } from "lucide-react";
@@ -33,6 +34,7 @@ interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/permis-de-travail", label: "Permis de travail (PtW)", icon: FileCheck },
   { href: "/inspections", label: "Inspections & Checklists", icon: CheckSquare },
   { href: "/incidents", label: "Incidents", icon: Siren },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },
