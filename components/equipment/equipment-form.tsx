@@ -99,7 +99,7 @@ export function EquipmentForm({ sites }: { sites: Site[] }) {
               size="sm"
               variant="outline"
               disabled={isPending}
-              onClick={(e) => {
+              onClick={() => {
                 const form = new FormData();
                 const input = document.getElementById("newSiteName") as HTMLInputElement | null;
                 form.set("name", input?.value ?? "");

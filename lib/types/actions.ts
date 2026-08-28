@@ -4,8 +4,14 @@ export type ActionStatus = Enums<"action_status">;
 
 export interface ActionCorrective {
   id: string;
-  incidentId: string;
-  incidentTitle: string;
+  incidentId?: string | null;
+  incidentTitle?: string | null;
+  auditId?: string | null;
+  auditTitle?: string | null;
+  riskId?: string | null;
+  riskTitle?: string | null;
+  sourceType: "incident" | "inspection" | "audit" | "risk" | "autre";
+  sourceTitle: string;
   description: string;
   responsableId: string;
   responsableName: string;

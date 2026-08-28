@@ -23,7 +23,7 @@ export function ActionForm({
   function handleSubmit(formData: FormData) {
     setError(null);
     startTransition(async () => {
-      const result = await createAction(incidentId, formData);
+      const result = await createAction({ incidentId }, formData);
       if (result.error) {
         setError(result.error);
       } else {

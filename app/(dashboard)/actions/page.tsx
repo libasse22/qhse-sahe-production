@@ -2,12 +2,10 @@ import Link from "next/link";
 import { getCurrentPermissions } from "@/lib/services/roles.service";
 import { listMyActions } from "@/lib/services/actions.service";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ActionStatusSelect } from "@/components/actions/action-status-select";
 import { ActionStatusBadge } from "@/components/actions/action-status-badge";
 import { ExportActionsCsvButton } from "@/components/actions/export-actions-csv-button";
 import { ProofGallery } from "@/components/actions/proof-gallery";
-import { CheckSquare } from "lucide-react";
 
 export default async function ActionsPage() {
   const permissions = await getCurrentPermissions();
@@ -55,16 +53,24 @@ export default async function ActionsPage() {
                       <tr key={action.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                         <td className="px-6 py-3">
                           <div className="space-y-1">
-                            <Link href={`/incidents/${action.incidentId}`} className="font-medium text-primary hover:underline block">
-                              {action.incidentTitle}
-                            </Link>
-                            {action.inspectionRunId && (
-                              <Badge variant="outline" className="text-[10px] gap-1 font-mono">
-                                <CheckSquare className="h-3 w-3 text-primary" />
-                                <Link href={`/inspections/${action.inspectionRunId}`} className="hover:underline">
-                                  Inspection #{action.inspectionItemId ? `[${action.inspectionItemId}]` : ""}
-                                </Link>
-                              </Badge>
+                            {action.incidentId ? (
+                              <Link href={`/incidents/${action.incidentId}`} className="font-medium text-primary hover:underline block">
+                                {action.sourceTitle}
+                              </Link>
+                            ) : action.inspectionRunId ? (
+                              <Link href={`/inspections/${action.inspectionRunId}`} className="font-medium text-primary hover:underline block">
+                                {action.sourceTitle}
+                              </Link>
+                            ) : action.auditId ? (
+                              <Link href={`/audits/${action.auditId}`} className="font-medium text-primary hover:underline block">
+                                {action.sourceTitle}
+                              </Link>
+                            ) : action.riskId ? (
+                              <Link href={`/risques`} className="font-medium text-primary hover:underline block">
+                                {action.sourceTitle}
+                              </Link>
+                            ) : (
+                              <span className="font-medium text-muted-foreground">{action.sourceTitle}</span>
                             )}
                           </div>
                         </td>
@@ -78,7 +84,7 @@ export default async function ActionsPage() {
                         </td>
                         <td className="px-6 py-3">
                           <div className="w-40">
-                            <ActionStatusSelect actionId={action.id} incidentId={action.incidentId} status={action.status} />
+                            <ActionStatusSelect actionId={action.id} incidentId={action.incidentId ?? ""} status={action.status} />
                           </div>
                         </td>
                       </tr>

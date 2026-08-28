@@ -11,7 +11,7 @@ export function ExportActionsCsvButton({ actions }: { actions: ActionCorrective[
       `actions-correctives-${new Date().toISOString().slice(0, 10)}.csv`,
       ["Incident", "Action", "Responsable", "Échéance", "Statut"],
       actions.map((a) => [
-        a.incidentTitle,
+        a.sourceTitle,
         a.description,
         a.responsableName,
         new Date(a.echeance).toLocaleDateString("fr-FR"),

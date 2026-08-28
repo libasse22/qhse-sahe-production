@@ -31,8 +31,13 @@ export function ChangePasswordForm() {
           {state.error}
         </p>
       )}
+      {success && !state.error && (
+        <p className="text-sm text-emerald-600" role="status">
+          Mot de passe mis à jour avec succès.
+        </p>
+      )}
       <Button type="submit" disabled={isPending}>
-        {isPending ? "Mise a jour..." : "Mettre a jour le mot de passe"}
+        {isPending ? "Mise à jour…" : "Mettre à jour le mot de passe"}
       </Button>
     </form>
   );
