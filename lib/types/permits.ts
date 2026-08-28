@@ -31,6 +31,8 @@ export interface WorkPermit {
   location: string;
   siteId?: string | null;
   siteName?: string | null;
+  equipmentId?: string | null;
+  equipmentName?: string | null;
   applicantId: string;
   applicantName?: string | null;
   approverId?: string | null;

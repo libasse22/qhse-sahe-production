@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/services/auth.service";
 import type { WorkPermit, WorkPermitStatus, WorkPermitType, SafetyMeasure } from "@/lib/types/permits";
 
 const PERMIT_SELECT =
-  "*, applicant:profiles!work_permits_applicant_id_fkey(full_name), approver:profiles!work_permits_approver_id_fkey(full_name), site:sites(name)";
+  "*, applicant:profiles!work_permits_applicant_id_fkey(full_name), approver:profiles!work_permits_approver_id_fkey(full_name), site:sites(name), equipment:equipment(name)";
 
 interface PermitRow {
   id: string;
@@ -16,6 +16,7 @@ interface PermitRow {
   description: string;
   location: string;
   site_id?: string | null;
+  equipment_id?: string | null;
   applicant_id: string;
   approver_id?: string | null;
   start_time: string;
@@ -28,6 +29,7 @@ interface PermitRow {
   applicant?: { full_name: string } | null;
   approver?: { full_name: string } | null;
   site?: { name: string } | null;
+  equipment?: { name: string } | null;
 }
 
 function toWorkPermit(row: PermitRow): WorkPermit {
@@ -40,6 +42,8 @@ function toWorkPermit(row: PermitRow): WorkPermit {
     location: row.location,
     siteId: row.site_id ?? null,
     siteName: row.site?.name ?? null,
+    equipmentId: row.equipment_id ?? null,
+    equipmentName: row.equipment?.name ?? null,
     applicantId: row.applicant_id,
     applicantName: row.applicant?.full_name ?? "—",
     approverId: row.approver_id ?? null,
@@ -83,6 +87,7 @@ export async function createWorkPermit(params: {
   description: string;
   location: string;
   siteId?: string;
+  equipmentId?: string;
   startTime: string;
   endTime: string;
   safetyMeasures: SafetyMeasure[];
@@ -107,6 +112,7 @@ export async function createWorkPermit(params: {
       description: params.description,
       location: params.location,
       site_id: params.siteId || null,
+      equipment_id: params.equipmentId || null,
       applicant_id: user.id,
       start_time: params.startTime,
       end_time: params.endTime,

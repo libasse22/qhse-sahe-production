@@ -97,6 +97,18 @@ export default async function WorkPermitDetailPage({
               </div>
             </div>
 
+            {permit.equipmentName && (
+              <div>
+                <span className="text-xs text-muted-foreground block">Équipement / Machine Rattaché</span>
+                <Link
+                  href={`/equipements/${permit.equipmentId}`}
+                  className="font-medium text-primary hover:underline block mt-0.5"
+                >
+                  ⚙️ {permit.equipmentName}
+                </Link>
+              </div>
+            )}
+
             {permit.description && (
               <div>
                 <span className="text-xs text-muted-foreground block">Description des travaux</span>
