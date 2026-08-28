@@ -123,7 +123,7 @@ export async function createWorkPermit(params: {
     .single();
 
   if (error || !data) {
-    return { error: "Impossible de créer le permis de travail." };
+    return { error: error?.message || "Impossible de créer le permis de travail." };
   }
 
   revalidatePath("/permis-de-travail");
