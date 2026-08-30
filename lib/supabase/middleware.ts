@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const AUTH_ROUTES = ["/login", "/signup"];
 const PUBLIC_ROUTES = ["/login", "/signup"];
 const PENDING_ROUTE = "/en-attente";
 
@@ -63,7 +64,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isPublicRoute = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/scan/");
+  const isAuthRoute = AUTH_ROUTES.includes(pathname);
 
   // Si l'utilisateur n'est pas connecté et qu'il tente d'accéder à une route privée :
   // Sur une navigation réelle, on redirige vers /login.
@@ -92,7 +94,7 @@ export async function updateSession(request: NextRequest) {
       return redirectTo("/login", { suspendu: "1" });
     }
 
-    if (isPublicRoute && !isPrefetch) {
+    if (isAuthRoute && !isPrefetch) {
       return redirectTo(isPending ? PENDING_ROUTE : "/dashboard");
     }
 

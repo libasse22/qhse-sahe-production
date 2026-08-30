@@ -20,6 +20,7 @@ import {
   MessageSquare,
   FileCheck,
   CheckSquare,
+  HardHat,
   Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/permis-de-travail", label: "Permis de travail (PtW)", icon: FileCheck },
+  { href: "/epi", label: "Gestion des EPI", icon: HardHat },
   { href: "/inspections", label: "Inspections & Checklists", icon: CheckSquare },
   { href: "/incidents", label: "Incidents", icon: Siren },
   { href: "/messagerie", label: "Messagerie", icon: MessageSquare },

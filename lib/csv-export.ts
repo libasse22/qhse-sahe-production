@@ -26,3 +26,33 @@ export function downloadCsv(fileName: string, headers: string[], rows: (string |
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+export function exportEpiToCsv(assignments: any[]) {
+  const headers = [
+    "Employé",
+    "Équipement (EPI)",
+    "Catégorie",
+    "Taille",
+    "N° Série",
+    "État",
+    "Statut",
+    "Date de Remise",
+    "Échéance Renouvellement",
+  ];
+
+  const rows = assignments.map((a) => [
+    a.recipientName || "—",
+    a.catalogName || "—",
+    a.category || "—",
+    a.size || "—",
+    a.serialNumber || "—",
+    a.conditionState || "—",
+    a.status || "—",
+    a.assignedAt ? new Date(a.assignedAt).toLocaleDateString("fr-FR") : "—",
+    a.renewalDueAt ? new Date(a.renewalDueAt).toLocaleDateString("fr-FR") : "Selon usure",
+  ]);
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  downloadCsv(`registre_epi_${dateStr}.csv`, headers, rows);
+}
+

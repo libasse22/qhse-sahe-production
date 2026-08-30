@@ -40,10 +40,32 @@ export async function listEquipment(): Promise<Equipment[]> {
 }
 
 export async function getEquipmentById(id: string): Promise<Equipment | null> {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!id || !uuidRegex.test(id)) return null;
+
   const supabase = await createClient();
   const { data, error } = await supabase.from("equipment").select(EQUIPMENT_SELECT).eq("id", id).maybeSingle();
-  if (error || !data) return null;
-  return toEquipment(data as unknown as EquipmentRow);
+  if (!error && data) {
+    return toEquipment(data as unknown as EquipmentRow);
+  }
+
+  // Fallback via fonction RPC SECURITY DEFINER strictement limitée au lookup QR (pour utilisateur non authentifié)
+  const { data: publicData, error: rpcError } = await supabase.rpc("get_public_equipment", { p_id: id });
+  if (rpcError || !publicData || (publicData as any[]).length === 0) {
+    return null;
+  }
+
+  const row = (publicData as any[])[0];
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    serialNumber: row.serial_number,
+    siteId: null,
+    siteName: row.site_name ?? null,
+    status: row.status,
+    createdAt: row.created_at,
+  };
 }
 
 /** Réservé à la permission equipment.manage (policy RLS equipment_write_permission). */

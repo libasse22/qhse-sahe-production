@@ -5,6 +5,8 @@ export type WorkPermitType =
   | "electrique"
   | "fouille"
   | "chimique"
+  | "levage"
+  | "consignation_loto"
   | "autre";
 
 export type WorkPermitStatus =
@@ -22,6 +24,13 @@ export interface SafetyMeasure {
   checked: boolean;
 }
 
+export interface WorkPermitWorker {
+  id: string;
+  workerId?: string | null;
+  workerName: string;
+  roleOrQualification: string;
+}
+
 export interface WorkPermit {
   id: string;
   reference: string;
@@ -29,6 +38,7 @@ export interface WorkPermit {
   title: string;
   description: string;
   location: string;
+  contractorCompany?: string | null;
   siteId?: string | null;
   siteName?: string | null;
   equipmentId?: string | null;
@@ -40,8 +50,11 @@ export interface WorkPermit {
   startTime: string;
   endTime: string;
   safetyMeasures: SafetyMeasure[];
+  workers?: WorkPermitWorker[];
   status: WorkPermitStatus;
   rejectionReason?: string | null;
+  suspendedAt?: string | null;
+  suspensionReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,7 +66,9 @@ export const PERMIT_TYPE_LABELS: Record<WorkPermitType, string> = {
   electrique: "Consignation Électrique",
   fouille: "Fouille / Tranchée",
   chimique: "Produits Chimiques / Risque Toxique",
-  autre: "Autre Travall à Risque",
+  levage: "Opérations de Levage",
+  consignation_loto: "Consignation / LOTO",
+  autre: "Autre Travail à Risque",
 };
 
 export const PERMIT_STATUS_LABELS: Record<WorkPermitStatus, string> = {

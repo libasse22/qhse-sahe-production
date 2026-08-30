@@ -55,6 +55,20 @@ const DEFAULT_SAFETY_CHECKLIST: Record<WorkPermitType, string[]> = {
     "Bassin de rétention et kit anti-pollution à proximité",
     "Lave-œil / Douche de sécurité opérationnel",
   ],
+  levage: [
+    "Plan de levage validé et adéquation de l'appareil",
+    "Vérification de la capacité maximale (CMU) des élingues/crochets",
+    "Sol stabilisé et stabilisateurs de grue déployés",
+    "Balisage strict de la zone d'évolution de la charge",
+    "Guidage par chef de manœuvre certifié",
+  ],
+  consignation_loto: [
+    "Identification de toutes les sources d'énergie (Électrique, Hydraulique, Pneumatique)",
+    "Pose de cadenas de consignation individuels nominatifs",
+    "Purge des énergies résiduelles (pression, condensateurs, fluide)",
+    "Vérification de l'absence d'énergie (VAT / zéro pression)",
+    "Signalisation et étiquetage LOTO sur le point d'isolement",
+  ],
   autre: [
     "Analyse de Risques de la Tâche (ART) réalisée",
     "Port des EPI de base (Casque, Chaussures, Gilet)",

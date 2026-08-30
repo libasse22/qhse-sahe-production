@@ -15,6 +15,7 @@ interface PermitRow {
   title: string;
   description: string;
   location: string;
+  contractor_company?: string | null;
   site_id?: string | null;
   equipment_id?: string | null;
   applicant_id: string;
@@ -24,6 +25,8 @@ interface PermitRow {
   safety_measures: SafetyMeasure[];
   status: WorkPermitStatus;
   rejection_reason?: string | null;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
   created_at: string;
   updated_at: string;
   applicant?: { full_name: string } | null;
@@ -40,6 +43,7 @@ function toWorkPermit(row: PermitRow): WorkPermit {
     title: row.title,
     description: row.description,
     location: row.location,
+    contractorCompany: row.contractor_company ?? null,
     siteId: row.site_id ?? null,
     siteName: row.site?.name ?? null,
     equipmentId: row.equipment_id ?? null,
@@ -53,6 +57,8 @@ function toWorkPermit(row: PermitRow): WorkPermit {
     safetyMeasures: row.safety_measures ?? [],
     status: row.status,
     rejectionReason: row.rejection_reason ?? null,
+    suspendedAt: row.suspended_at ?? null,
+    suspensionReason: row.suspension_reason ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -86,6 +92,7 @@ export async function createWorkPermit(params: {
   permitType: WorkPermitType;
   description: string;
   location: string;
+  contractorCompany?: string;
   siteId?: string;
   equipmentId?: string;
   startTime: string;
@@ -111,6 +118,7 @@ export async function createWorkPermit(params: {
       title: params.title,
       description: params.description,
       location: params.location,
+      contractor_company: params.contractorCompany || null,
       site_id: params.siteId || null,
       equipment_id: params.equipmentId || null,
       applicant_id: user.id,
@@ -162,5 +170,24 @@ export async function updateWorkPermitStatus(
   revalidatePath(`/permis-de-travail/${permitId}`);
   revalidatePath("/permis-de-travail");
   revalidatePath("/dashboard");
+  return { error: null };
+}
+
+export async function suspendWorkPermit(permitId: string, reason: string): Promise<ActionResult> {
+  const supabase = (await createClient()) as any;
+  const { error } = await supabase
+    .from("work_permits")
+    .update({
+      status: "annule",
+      suspended_at: new Date().toISOString(),
+      suspension_reason: reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", permitId);
+
+  if (error) return { error: "Impossible de suspendre le permis." };
+
+  revalidatePath(`/permis-de-travail/${permitId}`);
+  revalidatePath("/permis-de-travail");
   return { error: null };
 }
