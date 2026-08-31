@@ -1,7 +1,6 @@
 // Service Worker QHSE Duo Sénégal — Offline & Web Push
-const CACHE_NAME = "qhse-duo-v1";
+const CACHE_NAME = "qhse-duo-v2";
 const STATIC_ASSETS = [
-  "/",
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
@@ -9,73 +8,55 @@ const STATIC_ASSETS = [
   "/icons/apple-touch-icon.png",
 ];
 
-const CRITICAL_ROUTES = [
-  "/",
-  "/dashboard",
-  "/ouvrier",
-  "/ouvrier/declarer",
-  "/incidents",
-  "/actions",
-  "/epi",
-  "/permis-de-travail",
-];
-
-// Installation & Pre-caching
+// Installation & Pre-caching des seuls assets statiques publics (jamais de routes dynamiques)
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll([...STATIC_ASSETS, ...CRITICAL_ROUTES]).catch((err) => {
-        console.warn("Certaines ressources n'ont pas pu être pré-cachées au SW:", err);
-      });
-    }).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        return cache.addAll(STATIC_ASSETS);
+      })
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activation & Nettoyage des anciens caches
+// Activation & Nettoyage strict des anciens caches
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    }).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => {
+        return Promise.all(
+          keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        );
+      })
+      .then(() => self.clients.claim())
   );
 });
 
-// Stratégie de Caching : Network First pour HTML/Navigation, Stale-While-Revalidate pour static
+// Stratégie de Caching : Network Only pour la navigation HTML (Sécurité Multi-Tenant), Stale-While-Revalidate pour static
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignorer les requêtes non GET ou d'extensions/API externes non-http
+  // Ignorer les requêtes non GET ou non http(s)
   if (request.method !== "GET" || !url.protocol.startsWith("http")) return;
 
-  // Stratégie pour la navigation HTML (Network-First avec Fallback Cache)
+  // Stratégie pour la navigation HTML : Toujours du Réseau pour garantir zéro fuite multi-entreprises
+  // Fallback sur page HTML générique minimale si offline
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cachedResponse = await caches.match(request);
-          if (cachedResponse) return cachedResponse;
-          
-          // Fallback sur la page d'accueil ou offline si indisponible
-          return (await caches.match("/ouvrier")) || (await caches.match("/")) || new Response(
-            "<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Hors ligne — QHSE Duo</title></head><body style='font-family:sans-serif;text-align:center;padding:50px;'><h1>Connexion Hors-Ligne</h1><p>L'application QHSE Duo est actuellement en mode hors-ligne. Vos données saisies sont conservées et seront synchronisées dès le retour du réseau.</p></body></html>",
-            { headers: { "Content-Type": "text/html" } }
-          );
-        })
+      fetch(request).catch(() => {
+        return new Response(
+          "<!DOCTYPE html><html><head><meta charset='utf-8'/><title>Hors ligne — QHSE Duo</title><meta name='viewport' content='width=device-width, initial-scale=1'/></head><body style='font-family:sans-serif;text-align:center;padding:50px;background:#0f172a;color:#fff;'><h1>Mode Hors-Ligne</h1><p>L'application QHSE Duo est actuellement en mode hors-ligne. Vos signalements saisis sont conservés en toute sécurité dans l'appareil et seront envoyés dès le retour de la connexion Internet.</p></body></html>",
+          { headers: { "Content-Type": "text/html; charset=utf-8" } }
+        );
+      })
     );
     return;
   }
 
-  // Stratégie Stale-While-Revalidate pour les assets statiques et images
+  // Stratégie Stale-While-Revalidate pour les assets statiques et images publics uniquement
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
@@ -86,12 +67,14 @@ self.addEventListener("fetch", (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
-        const fetchPromise = fetch(request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse.clone()));
-          }
-          return networkResponse;
-        }).catch(() => null);
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, networkResponse.clone()));
+            }
+            return networkResponse;
+          })
+          .catch(() => null);
 
         return cachedResponse || fetchPromise;
       })

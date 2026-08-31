@@ -92,18 +92,69 @@ export function PwaRegister() {
   );
 }
 
+export type SwState = "INSTALLING" | "READY" | "UPDATE_AVAILABLE" | "ERROR";
+
 export function PwaHeaderStatus() {
-  const [swActive, setSwActive] = useState(false);
+  const [swState, setSwState] = useState<SwState>("INSTALLING");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pushStatus, setPushStatus] = useState<string>("default");
 
   useEffect(() => {
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then(() => setSwActive(true));
-      if ("Notification" in window) {
-        setPushStatus(Notification.permission);
-      }
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      setSwState("ERROR");
+      return;
     }
+
+    if ("Notification" in window) {
+      setPushStatus(Notification.permission);
+    }
+
+    navigator.serviceWorker
+      .getRegistration("/sw.js")
+      .then((reg) => {
+        if (!reg) {
+          setSwState("INSTALLING");
+          return;
+        }
+
+        if (reg.waiting) {
+          setSwState("UPDATE_AVAILABLE");
+        } else if (reg.active) {
+          setSwState("READY");
+        } else if (reg.installing) {
+          setSwState("INSTALLING");
+        }
+
+        reg.addEventListener("updatefound", () => {
+          const installingWorker = reg.installing;
+          if (!installingWorker) return;
+
+          installingWorker.addEventListener("statechange", () => {
+            if (installingWorker.state === "installed") {
+              if (navigator.serviceWorker.controller) {
+                setSwState("UPDATE_AVAILABLE");
+              } else {
+                setSwState("READY");
+              }
+            } else if (installingWorker.state === "activated") {
+              setSwState("READY");
+            } else if (installingWorker.state === "redundant") {
+              setSwState("ERROR");
+            }
+          });
+        });
+      })
+      .catch(() => {
+        setSwState("ERROR");
+      });
+
+    navigator.serviceWorker.ready
+      .then(() => {
+        setSwState((prev) => (prev === "UPDATE_AVAILABLE" ? prev : "READY"));
+      })
+      .catch(() => {
+        setSwState("ERROR");
+      });
   }, []);
 
   async function handleTestPushNotification() {
@@ -121,6 +172,22 @@ export function PwaHeaderStatus() {
     }
   }
 
+  function getSwStatusLabel() {
+    switch (swState) {
+      case "READY":
+        return { label: "Opérationnel (/sw.js)", color: "text-emerald-600", badge: "success" as const };
+      case "UPDATE_AVAILABLE":
+        return { label: "Mise à jour disponible", color: "text-blue-600", badge: "warning" as const };
+      case "INSTALLING":
+        return { label: "Installation...", color: "text-amber-600", badge: "warning" as const };
+      case "ERROR":
+      default:
+        return { label: "Non actif / Erreur", color: "text-destructive", badge: "destructive" as const };
+    }
+  }
+
+  const status = getSwStatusLabel();
+
   return (
     <>
       <button
@@ -131,7 +198,11 @@ export function PwaHeaderStatus() {
       >
         <Smartphone className="h-3.5 w-3.5 text-emerald-500" />
         <span>PWA</span>
-        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span
+          className={`h-2 w-2 rounded-full ${
+            swState === "READY" ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+          }`}
+        />
       </button>
 
       {dialogOpen && (
@@ -141,14 +212,14 @@ export function PwaHeaderStatus() {
               <h2 className="text-base font-bold flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5 text-emerald-500" /> Application PWA QHSE Duo
               </h2>
-              <Badge variant="success">Actif</Badge>
+              <Badge variant={status.badge}>{swState}</Badge>
             </div>
 
             <div className="space-y-2 bg-muted/30 p-3 rounded-lg border">
               <div className="flex items-center justify-between">
                 <span>Service Worker Cache :</span>
-                <span className="font-semibold text-emerald-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> {swActive ? "Opérationnel (/sw.js)" : "En cours..."}
+                <span className={`font-semibold ${status.color} flex items-center gap-1`}>
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {status.label}
                 </span>
               </div>
 
