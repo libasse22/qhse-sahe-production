@@ -1,0 +1,22 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#0F172A"/>
+  <rect x="16" y="16" width="480" height="480" rx="96" stroke="#1E293B" stroke-width="8"/>
+  
+  <!-- Shield Background -->
+  <path d="M256 80L384 128V248C384 336 328 408 256 432C184 408 128 336 128 248V128L256 80Z" fill="url(#shield_grad)" stroke="#10B981" stroke-width="8"/>
+
+  <!-- Helmet Motif -->
+  <path d="M192 240C192 204.654 220.654 176 256 176C291.346 176 320 204.654 320 240V272H192V240Z" fill="#F59E0B"/>
+  <path d="M168 272H344V296C344 300.418 340.418 304 336 304H176C171.582 304 168 300.418 168 296V272Z" fill="#D97706"/>
+  <rect x="246" y="160" width="20" height="112" rx="4" fill="#FBBF24"/>
+
+  <!-- Text QD -->
+  <text x="256" y="360" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-weight="900" font-size="36" letter-spacing="2">QHSE DUO</text>
+
+  <defs>
+    <linearGradient id="shield_grad" x1="256" y1="80" x2="256" y2="432" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#064E3B"/>
+      <stop offset="1" stop-color="#022C22"/>
+    </linearGradient>
+  </defs>
+</svg>
