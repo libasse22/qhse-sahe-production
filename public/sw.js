@@ -123,6 +123,7 @@ self.addEventListener("push", (event) => {
     icon: data.icon || "/icons/icon-192x192.png",
     badge: data.badge || "/icons/icon-192x192.png",
     vibrate: [200, 100, 200],
+    tag: data.tag || `qhse-notif-${Date.now()}`,
     data: { url: data.url || "/incidents" },
     actions: [
       { action: "open", title: "Consulter" },
@@ -137,12 +138,13 @@ self.addEventListener("push", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data && (event.data.type === "SHOW_NOTIFICATION" || event.data.title)) {
     const data = event.data;
-    const title = data.title || "Notification";
+    const title = data.title || "Notification QHSE Duo";
     const options = {
       body: data.body || "Nouveau message ou publication",
       icon: data.icon || "/icons/icon-192x192.png",
       badge: data.badge || "/icons/icon-192x192.png",
       vibrate: [200, 100, 200],
+      tag: data.tag || `qhse-postmsg-${Date.now()}`,
       data: { url: data.url || "/" },
     };
     event.waitUntil(self.registration.showNotification(title, options));
@@ -170,3 +172,4 @@ self.addEventListener("notificationclick", (event) => {
     })
   );
 });
+

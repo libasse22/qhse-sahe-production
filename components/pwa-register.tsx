@@ -6,7 +6,7 @@ import { WifiOff, Download, Smartphone, CheckCircle2, BellRing, ShieldCheck } fr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import { PushNotificationListener } from "@/components/notifications/push-notification-listener";
+import { PushNotificationListener, showNativePush } from "@/components/notifications/push-notification-listener";
 
 export function PwaRegister() {
   const [isOffline, setIsOffline] = useState(false);
@@ -19,11 +19,6 @@ export function PwaRegister() {
     // 2. Gestion de l'état réseau
     if (typeof window !== "undefined") {
       setIsOffline(!navigator.onLine);
-
-      // Auto-demande d'autorisation des Notifications Web Push si non encore décidé
-      if ("Notification" in window && Notification.permission === "default") {
-        Notification.requestPermission();
-      }
 
       const handleOnline = () => {
         setIsOffline(false);
@@ -118,33 +113,11 @@ export function PwaHeaderStatus() {
     setPushStatus(permission);
 
     if (permission === "granted") {
-      const payload = {
-        type: "SHOW_NOTIFICATION",
-        title: "🚨 Test Notification Push — QHSE Duo",
-        body: "Web Push PWA est fonctionnel sur votre appareil !",
-        icon: "/icons/icon-192x192.png",
-        badge: "/icons/icon-192x192.png",
-        url: "/incidents",
-      };
-
-      if ("serviceWorker" in navigator) {
-        const reg = await navigator.serviceWorker.ready;
-        if (reg.active) {
-          reg.active.postMessage(payload);
-        }
-        try {
-          await reg.showNotification(payload.title, {
-            body: payload.body,
-            icon: payload.icon,
-            badge: payload.badge,
-            data: { url: payload.url },
-          });
-        } catch {
-          // Ignoré si le SW s'en charge déjà
-        }
-      } else {
-        new Notification(payload.title, { body: payload.body, icon: payload.icon });
-      }
+      showNativePush(
+        "🚨 Test Notification Push — QHSE Duo",
+        "Web Push PWA est 100% fonctionnel sur votre appareil !",
+        "/incidents"
+      );
     }
   }
 

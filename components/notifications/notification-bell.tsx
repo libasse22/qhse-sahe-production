@@ -82,22 +82,8 @@ export function NotificationBell({ userId }: { userId: string }) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
-        (payload) => {
+        () => {
           if (hasMountedRef.current) playNotificationSound();
-
-          // Web Push via Service Worker si les autorisations sont données
-          if ("serviceWorker" in navigator && typeof Notification !== "undefined" && Notification.permission === "granted") {
-            const newNotif = payload.new as any;
-            navigator.serviceWorker.ready.then((reg) => {
-              reg.showNotification(newNotif?.title || "🚨 Notification QHSE Duo", {
-                body: newNotif?.message || "Nouvel événement ou signalement.",
-                icon: "/icons/icon-192x192.png",
-                badge: "/icons/icon-192x192.png",
-                data: { url: newNotif?.link || "/incidents" },
-              });
-            });
-          }
-
           listMyNotifications().then(setNotifications);
         },
       )
