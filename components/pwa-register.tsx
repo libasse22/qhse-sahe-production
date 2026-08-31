@@ -117,14 +117,34 @@ export function PwaHeaderStatus() {
     const permission = await Notification.requestPermission();
     setPushStatus(permission);
 
-    if (permission === "granted" && "serviceWorker" in navigator) {
-      const reg = await navigator.serviceWorker.ready;
-      reg.showNotification("🚨 Test Notification Push — QHSE Duo", {
+    if (permission === "granted") {
+      const payload = {
+        type: "SHOW_NOTIFICATION",
+        title: "🚨 Test Notification Push — QHSE Duo",
         body: "Web Push PWA est fonctionnel sur votre appareil !",
         icon: "/icons/icon-192x192.png",
         badge: "/icons/icon-192x192.png",
-        data: { url: "/incidents" },
-      });
+        url: "/incidents",
+      };
+
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        if (reg.active) {
+          reg.active.postMessage(payload);
+        }
+        try {
+          await reg.showNotification(payload.title, {
+            body: payload.body,
+            icon: payload.icon,
+            badge: payload.badge,
+            data: { url: payload.url },
+          });
+        } catch {
+          // Ignoré si le SW s'en charge déjà
+        }
+      } else {
+        new Notification(payload.title, { body: payload.body, icon: payload.icon });
+      }
     }
   }
 

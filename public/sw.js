@@ -100,7 +100,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Notifications Push Web
+// Notifications Push Web (Événement Push Réseau)
 self.addEventListener("push", (event) => {
   let data = {
     title: "🚨 Alerte QHSE Duo Sénégal",
@@ -119,7 +119,7 @@ self.addEventListener("push", (event) => {
   }
 
   const options = {
-    body: data.body,
+    body: data.body || "Nouveau message ou publication",
     icon: data.icon || "/icons/icon-192x192.png",
     badge: data.badge || "/icons/icon-192x192.png",
     vibrate: [200, 100, 200],
@@ -130,7 +130,23 @@ self.addEventListener("push", (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(self.registration.showNotification(data.title || "Notification", options));
+});
+
+// Écouteur de messages postMessage envoyés par le client (Test Push & Realtime)
+self.addEventListener("message", (event) => {
+  if (event.data && (event.data.type === "SHOW_NOTIFICATION" || event.data.title)) {
+    const data = event.data;
+    const title = data.title || "Notification";
+    const options = {
+      body: data.body || "Nouveau message ou publication",
+      icon: data.icon || "/icons/icon-192x192.png",
+      badge: data.badge || "/icons/icon-192x192.png",
+      vibrate: [200, 100, 200],
+      data: { url: data.url || "/" },
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+  }
 });
 
 // Clic sur Notification Push

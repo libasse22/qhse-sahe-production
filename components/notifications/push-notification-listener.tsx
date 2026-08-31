@@ -106,18 +106,37 @@ export function PushNotificationListener() {
 function showNativePush(title: string, body: string, url: string) {
   if (
     typeof window !== "undefined" &&
-    "serviceWorker" in navigator &&
     typeof Notification !== "undefined" &&
     Notification.permission === "granted"
   ) {
-    navigator.serviceWorker.ready.then((reg) => {
-      reg.showNotification(title, {
-        body,
-        icon: "/icons/icon-192x192.png",
-        badge: "/icons/icon-192x192.png",
-        data: { url },
-        vibrate: [200, 100, 200],
-      } as any);
-    });
+    const payload = {
+      type: "SHOW_NOTIFICATION",
+      title,
+      body,
+      icon: "/icons/icon-192x192.png",
+      badge: "/icons/icon-192x192.png",
+      url,
+    };
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        if (reg.active) {
+          reg.active.postMessage(payload);
+        }
+        try {
+          reg.showNotification(title, {
+            body,
+            icon: "/icons/icon-192x192.png",
+            badge: "/icons/icon-192x192.png",
+            data: { url },
+            vibrate: [200, 100, 200],
+          } as any);
+        } catch {
+          // SW s'en charge
+        }
+      });
+    } else {
+      new Notification(title, { body, icon: "/icons/icon-192x192.png" });
+    }
   }
 }
