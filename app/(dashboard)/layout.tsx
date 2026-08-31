@@ -6,6 +6,7 @@ import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { UserNav } from "@/components/layout/user-nav";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { PwaHeaderStatus } from "@/components/pwa-register";
 
 export default async function DashboardLayout({
   children,
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
       <MobileNav permissions={Array.from(permissions)} appName={settings.appName} logoUrl={settings.logoUrl} userId={profile.id} />
       <div className="flex flex-1 flex-col overflow-x-hidden">
         <header className="sticky top-0 z-30 hidden h-16 items-center justify-end gap-3 border-b border-border/80 glass-header px-6 md:flex transition-all duration-200">
+          <PwaHeaderStatus />
           <NotificationBell userId={profile.id} />
           <UserNav profile={profile} />
         </header>
