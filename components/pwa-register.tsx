@@ -6,6 +6,8 @@ import { WifiOff, Download, Smartphone, CheckCircle2, BellRing, ShieldCheck } fr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
+import { PushNotificationListener } from "@/components/notifications/push-notification-listener";
+
 export function PwaRegister() {
   const [isOffline, setIsOffline] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
@@ -17,6 +19,11 @@ export function PwaRegister() {
     // 2. Gestion de l'état réseau
     if (typeof window !== "undefined") {
       setIsOffline(!navigator.onLine);
+
+      // Auto-demande d'autorisation des Notifications Web Push si non encore décidé
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
 
       const handleOnline = () => {
         setIsOffline(false);
@@ -65,6 +72,8 @@ export function PwaRegister() {
 
   return (
     <>
+      <PushNotificationListener />
+
       {/* Banner Mode Hors-Ligne */}
       {isOffline && (
         <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xl">
