@@ -10,18 +10,32 @@ export function showNativePush(title: string, body: string, url: string) {
     Notification.permission === "granted"
   ) {
     const payloadIcon = "/icons/icon-192x192.png";
+    const payload = {
+      type: "SHOW_NOTIFICATION",
+      title,
+      body,
+      icon: payloadIcon,
+      badge: payloadIcon,
+      url,
+      tag: `qhse-push-${Date.now()}`,
+    };
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.ready
         .then((reg) => {
-          reg.showNotification(title, {
-            body,
-            icon: payloadIcon,
-            badge: payloadIcon,
-            tag: `qhse-push-${Date.now()}`,
-            data: { url },
-            vibrate: [200, 100, 200],
-          } as any);
+          if (reg.active) {
+            // Centralisation de l'affichage natif via postMessage au Service Worker
+            reg.active.postMessage(payload);
+          } else {
+            reg.showNotification(title, {
+              body,
+              icon: payloadIcon,
+              badge: payloadIcon,
+              tag: payload.tag,
+              data: { url },
+              vibrate: [200, 100, 200],
+            } as any);
+          }
         })
         .catch(() => {
           try {
@@ -78,8 +92,8 @@ export function PushNotificationListener() {
             const msg = payload.new as any;
             if (msg.sender_id === currentUserId) return;
             showNativePush(
-              "💬 Nouveau message dans la discussion",
-              msg.content || "Nouveau message reçu.",
+              "📩 Nouveau message reçu",
+              msg.content || "Nouveau message dans la discussion.",
               `/messagerie/${msg.conversation_id || ""}`
             );
           }
@@ -96,7 +110,7 @@ export function PushNotificationListener() {
           (payload) => {
             const inc = payload.new as any;
             showNativePush(
-              "🚨 Nouvel incident signalé sur le terrain",
+              "🚨 Nouvel incident signalé",
               `Lieu : ${inc.location || "Non spécifié"}${inc.severity ? ` (Gravité : ${inc.severity})` : ""}`,
               `/incidents/${inc.id || ""}`
             );
@@ -114,7 +128,7 @@ export function PushNotificationListener() {
           (payload) => {
             const pol = payload.new as any;
             showNativePush(
-              "📄 Nouvelle Politique QHSE Publiée",
+              "📢 Nouvelle politique qualité publiée",
               `Titre : ${pol.title || "Politique générale"} (v${pol.version || 1})`,
               "/politique"
             );
@@ -142,12 +156,12 @@ export function PushNotificationListener() {
       channels.push(regCh);
     }
 
-    // Tenter l'initialisation immédiate si l'utilisateur est déjà connecté
+    // Initialisation si utilisateur déjà connecté
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setupForUser(user.id);
     });
 
-    // Écouter les changements d'état Auth (connexion/déconnexion)
+    // Écoute dynamique des changements d'état d'authentification (refresh/reconnexion)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setupForUser(session.user.id);
@@ -165,4 +179,5 @@ export function PushNotificationListener() {
 
   return null;
 }
+
 
