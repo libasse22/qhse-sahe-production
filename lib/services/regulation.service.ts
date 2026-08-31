@@ -135,6 +135,17 @@ export async function createRegulation(formData: FormData): Promise<CreateRegula
         link: "/reglement-interieur",
       })),
     );
+
+    // Expédition Web Push arrière-plan non-bloquante
+    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+    for (const u of activeUsers as any[]) {
+      void sendWebPushToUser(u.id, {
+        title: "📄 Nouveau règlement intérieur publié",
+        body: `Titre : ${title.trim()} (v${nextVersion})`,
+        url: "/reglement-interieur",
+        tag: `reg-${(data as any).id}`,
+      });
+    }
   }
 
   revalidatePath("/reglement-interieur");

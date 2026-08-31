@@ -200,6 +200,29 @@ export async function syncQueuedIncident(payload: QueuedIncidentPayload): Promis
     return { error: "Impossible d'enregistrer le signalement." };
   }
 
+  // Expédition Web Push arrière-plan non-bloquante aux utilisateurs
+  try {
+    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+    const { data: activeUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("status", "active")
+      .neq("id", user.id);
+
+    if (activeUsers) {
+      for (const u of activeUsers as any[]) {
+        void sendWebPushToUser(u.id, {
+          title: "🚨 Nouvel incident signalé",
+          body: `Lieu : ${payload.location || "Non précisé"} (Gravité : ${payload.severity})`,
+          url: `/incidents/${data.id}`,
+          tag: `inc-${data.id}`,
+        });
+      }
+    }
+  } catch {
+    // Ignoré si échec Web Push : la création de l'incident est garantie.
+  }
+
   revalidatePath("/ouvrier/mes-declarations");
   return { error: null, incidentId: data.id };
 }

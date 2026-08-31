@@ -134,6 +134,29 @@ export async function createWorkPermit(params: {
     return { error: error?.message || "Impossible de créer le permis de travail." };
   }
 
+  // Notification Web Push non-bloquante pour les managers / valideurs
+  try {
+    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+    const { data: qhseUsers } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("status", "active")
+      .neq("id", user.id);
+
+    if (qhseUsers) {
+      for (const q of qhseUsers as any[]) {
+        void sendWebPushToUser(q.id, {
+          title: "📄 Permis de travail à valider",
+          body: `Titre : ${params.title} (${reference})`,
+          url: `/permis-de-travail/${data.id}`,
+          tag: `ptw-${data.id}`,
+        });
+      }
+    }
+  } catch {
+    // Non-blocking
+  }
+
   revalidatePath("/permis-de-travail");
   revalidatePath("/dashboard");
   return { error: null, permitId: data.id };
@@ -158,6 +181,12 @@ export async function updateWorkPermitStatus(
     updateData.rejection_reason = rejectionReason;
   }
 
+  const { data: permit } = await supabase
+    .from("work_permits")
+    .select("applicant_id, reference, title")
+    .eq("id", permitId)
+    .single();
+
   const { error } = await supabase
     .from("work_permits")
     .update(updateData)
@@ -165,6 +194,22 @@ export async function updateWorkPermitStatus(
 
   if (error) {
     return { error: "Impossible de mettre à jour le permis de travail." };
+  }
+
+  // Notification Web Push au demandeur du permis
+  if (permit && (permit as any).applicant_id) {
+    try {
+      const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+      const statusLabel = status === "approuve" ? "Approuvé" : status === "refuse" ? "Refusé" : "Mis à jour";
+      void sendWebPushToUser((permit as any).applicant_id, {
+        title: `📄 Permis de travail : ${statusLabel}`,
+        body: `Référence : ${(permit as any).reference} — ${(permit as any).title}`,
+        url: `/permis-de-travail/${permitId}`,
+        tag: `ptw-status-${permitId}`,
+      });
+    } catch {
+      // Non-blocking
+    }
   }
 
   revalidatePath(`/permis-de-travail/${permitId}`);

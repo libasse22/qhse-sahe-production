@@ -160,6 +160,21 @@ export async function createAction(
     return { error: "Impossible de créer l'action corrective." };
   }
 
+  // Expédition Web Push non-bloquante vers le responsable assigné
+  if (responsableId) {
+    try {
+      const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+      void sendWebPushToUser(responsableId, {
+        title: "🛠️ Action corrective assignée",
+        body: description.slice(0, 100),
+        url: source.incidentId ? `/incidents/${source.incidentId}` : "/actions",
+        tag: `action-${Date.now()}`,
+      });
+    } catch {
+      // Ignoré si échec Web Push
+    }
+  }
+
   if (source.incidentId) revalidatePath(`/incidents/${source.incidentId}`);
   if (source.auditId) revalidatePath(`/audits/${source.auditId}`);
   if (source.inspectionRunId) revalidatePath(`/inspections/${source.inspectionRunId}`);

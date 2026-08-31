@@ -181,6 +181,17 @@ export async function sendMessage(
         link: `/messagerie/${conversationId}`,
       })),
     );
+
+    // Expédition Web Push arrière-plan non-bloquante vers les participants
+    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+    for (const p of participants as any[]) {
+      void sendWebPushToUser(p.user_id, {
+        title: `📩 Nouveau message — ${senderName}`,
+        body: preview,
+        url: `/messagerie/${conversationId}`,
+        tag: `msg-${conversationId}`,
+      });
+    }
   }
 
   revalidatePath("/messagerie");

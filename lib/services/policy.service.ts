@@ -180,6 +180,17 @@ export async function createPolicy(formData: FormData): Promise<CreatePolicyResu
         link: "/politique",
       })),
     );
+
+    // Expédition Web Push arrière-plan non-bloquante
+    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+    for (const u of activeUsers as any[]) {
+      void sendWebPushToUser(u.id, {
+        title: "📢 Nouvelle politique qualité publiée",
+        body: `Titre : ${title} (v${nextVersion})`,
+        url: "/politique",
+        tag: `policy-${data.id}`,
+      });
+    }
   }
 
   revalidatePath("/politique");

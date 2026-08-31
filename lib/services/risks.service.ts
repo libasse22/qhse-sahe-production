@@ -78,6 +78,31 @@ export async function createRisk(formData: FormData): Promise<ActionResult> {
 
   if (error) return { error: "Impossible de créer le risque." };
 
+  // Expédition Web Push non-bloquante si le risque est critique (criticité >= 12)
+  if (probability * gravity >= 12) {
+    try {
+      const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+      const { data: activeUsers } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("status", "active")
+        .neq("id", user.id);
+
+      if (activeUsers) {
+        for (const u of activeUsers as any[]) {
+          void sendWebPushToUser(u.id, {
+            title: "⚠️ Risque critique identifié",
+            body: `Titre : ${title} (Criticité : ${probability * gravity})`,
+            url: "/risques",
+            tag: `risk-${Date.now()}`,
+          });
+        }
+      }
+    } catch {
+      // Ignoré si échec Web Push
+    }
+  }
+
   revalidatePath("/risques");
   return { error: null };
 }
