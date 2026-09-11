@@ -73,7 +73,7 @@ export async function getCockpitData(): Promise<CockpitData> {
 
     supabase
       .from("actions_correctives")
-      .select("id, incident_id, description, responsable_id, echeance, status, created_at, updated_at, responsable:profiles!actions_responsable_id_fkey(full_name), incident:incidents(title, location)")
+      .select("id, code_reference, incident_id, description, responsable_id, echeance, status, is_blocked, created_at, updated_at, responsable:profiles!actions_correctives_responsable_id_fkey(full_name), incident:incidents(title, location)")
       .order("echeance", { ascending: true }),
 
     supabase
@@ -156,18 +156,39 @@ export async function getCockpitData(): Promise<CockpitData> {
     }
   }
 
-  // --- 2. CLASSIFICATION DES ACTIONS CORRECTIVES ---
+  // --- 2. CLASSIFICATION DES ACTIONS CORRECTIVES CAPA ---
   let actionsEnRetardCount = 0;
-  const actionsByStatus: Record<string, number> = { a_faire: 0, en_cours: 0, termine: 0 };
+  const actionsByStatus: Record<string, number> = {};
   const todayDate = new Date(new Date().toDateString());
 
   for (const act of actions) {
-    if (act.status) actionsByStatus[act.status] = (actionsByStatus[act.status] || 0) + 1;
+    let statusStr = act.status as string;
+    if (statusStr === "a_faire") statusStr = "ouverte";
+    if (statusStr === "termine") statusStr = "cloturee";
+
+    actionsByStatus[statusStr] = (actionsByStatus[statusStr] || 0) + 1;
     const respName = act.responsable ? (act.responsable as unknown as { full_name: string }).full_name : null;
     const incInfo = act.incident as unknown as { title: string; location: string } | null;
     const echeanceDate = new Date(act.echeance);
 
-    if (act.status !== "termine") {
+    const refPrefix = act.code_reference ? `[${act.code_reference}] ` : "";
+
+    // Action bloquée (Urgent)
+    if (act.is_blocked || statusStr === "bloquee") {
+      urgentItems.push({
+        id: `act-blocked-${act.id}`,
+        title: `${refPrefix}${act.description}`,
+        subtitle: "🔴 Action CAPA bloquée (Intervention requise)",
+        category: "action",
+        priority: "urgent",
+        badgeText: "Bloquée",
+        badgeVariant: "destructive",
+        assignedTo: respName,
+        dateLabel: `Échéance le ${formatDate(act.echeance)}`,
+        isOverdue: true,
+        href: `/actions`,
+      });
+    } else if (statusStr !== "cloturee" && statusStr !== "rejetee") {
       const daysDiff = calculateDaysDifference(act.echeance);
 
       if (echeanceDate < todayDate) {
@@ -176,7 +197,7 @@ export async function getCockpitData(): Promise<CockpitData> {
         const absDays = Math.abs(daysDiff);
         urgentItems.push({
           id: `act-${act.id}`,
-          title: act.description,
+          title: `${refPrefix}${act.description}`,
           subtitle: incInfo?.title ? `Incident : ${incInfo.title}` : null,
           category: "action",
           priority: "urgent",
@@ -187,12 +208,26 @@ export async function getCockpitData(): Promise<CockpitData> {
           isOverdue: true,
           href: `/actions`,
         });
+      } else if (statusStr === "a_verifier") {
+        // 🟠 À TRAITER : Action soumise à la vérification
+        aTraiterItems.push({
+          id: `act-verify-${act.id}`,
+          title: `${refPrefix}${act.description}`,
+          subtitle: "🎯 Action à vérifier et évaluer",
+          category: "action",
+          priority: "a_traiter",
+          badgeText: "À vérifier",
+          badgeVariant: "warning",
+          assignedTo: respName,
+          dateLabel: `Soumise le ${formatDate(act.updated_at)}`,
+          href: `/actions`,
+        });
       } else if (daysDiff <= 7) {
         // 🟠 À TRAITER : Action sous 7 jours
         const label = daysDiff === 0 ? "Échéance Aujourd'hui" : `Dans ${daysDiff} j`;
         aTraiterItems.push({
           id: `act-soon-${act.id}`,
-          title: act.description,
+          title: `${refPrefix}${act.description}`,
           subtitle: incInfo?.title ? `Incident : ${incInfo.title}` : null,
           category: "action",
           priority: "a_traiter",
@@ -203,16 +238,16 @@ export async function getCockpitData(): Promise<CockpitData> {
           href: `/actions`,
         });
       }
-    } else {
-      // 🟢 INFO : Action récemment terminée
+    } else if (statusStr === "cloturee") {
+      // 🟢 INFO : Action récemment clôturée
       if (infoItems.length < 10) {
         infoItems.push({
           id: `act-term-${act.id}`,
-          title: act.description,
-          subtitle: "Action réalisée avec succès",
+          title: `${refPrefix}${act.description}`,
+          subtitle: "Action CAPA clôturée avec succès",
           category: "action",
           priority: "info",
-          badgeText: "Terminée",
+          badgeText: "Clôturée",
           badgeVariant: "success",
           assignedTo: respName,
           dateLabel: `Clôturée le ${formatDate(act.updated_at)}`,

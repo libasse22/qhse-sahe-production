@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateWorkPermitStatus } from "@/lib/services/permits.service";
+import { updateWorkPermitStatus, suspendWorkPermit, resumeWorkPermit } from "@/lib/services/permits.service";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { WorkPermitStatus } from "@/lib/types/permits";
-import { CheckCircle2, XCircle, PlayCircle, Archive, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, PlayCircle, Archive, AlertTriangle, PauseCircle } from "lucide-react";
 
 export function PermitActionButtons({
   permitId,
@@ -18,7 +18,9 @@ export function PermitActionButtons({
 }) {
   const [isPending, startTransition] = useTransition();
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [showSuspendForm, setShowSuspendForm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [suspensionReason, setSuspensionReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   function handleStatusChange(targetStatus: WorkPermitStatus, reason?: string) {
@@ -29,6 +31,30 @@ export function PermitActionButtons({
         setError(res.error);
       } else {
         setShowRejectForm(false);
+      }
+    });
+  }
+
+  function handleSuspend() {
+    if (!suspensionReason.trim()) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await suspendWorkPermit(permitId, suspensionReason);
+      if (res.error) {
+        setError(res.error);
+      } else {
+        setShowSuspendForm(false);
+        setSuspensionReason("");
+      }
+    });
+  }
+
+  function handleResume() {
+    setError(null);
+    startTransition(async () => {
+      const res = await resumeWorkPermit(permitId);
+      if (res.error) {
+        setError(res.error);
       }
     });
   }
@@ -72,8 +98,32 @@ export function PermitActionButtons({
           </Button>
         )}
 
-        {/* Clôture des travaux si en cours */}
-        {(currentStatus === "en_cours" || currentStatus === "approuve") && (
+        {/* Bouton de suspension si travaux en cours */}
+        {currentStatus === "en_cours" && canManage && (
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={isPending}
+            onClick={() => setShowSuspendForm(!showSuspendForm)}
+          >
+            <PauseCircle className="mr-1.5 h-4 w-4" /> Suspendre les travaux
+          </Button>
+        )}
+
+        {/* Bouton de reprise des travaux si suspendu */}
+        {currentStatus === "suspendu" && canManage && (
+          <Button
+            size="sm"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            disabled={isPending}
+            onClick={handleResume}
+          >
+            <PlayCircle className="mr-1.5 h-4 w-4" /> Lever la suspension (Reprise)
+          </Button>
+        )}
+
+        {/* Clôture des travaux si en cours ou suspendu */}
+        {(currentStatus === "en_cours" || currentStatus === "approuve" || currentStatus === "suspendu") && canManage && (
           <Button
             size="sm"
             variant="outline"
@@ -126,6 +176,39 @@ export function PermitActionButtons({
               onClick={() => handleStatusChange("refuse", rejectionReason)}
             >
               Confirmer le Refus
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showSuspendForm && (
+        <div className="mt-3 space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+          <label htmlFor="suspensionReason" className="text-xs font-medium text-amber-700 dark:text-amber-400">
+            Motif de la suspension d&apos;urgence (météo, fuite, danger imminent...) :
+          </label>
+          <Textarea
+            id="suspensionReason"
+            value={suspensionReason}
+            onChange={(e) => setSuspensionReason(e.target.value)}
+            placeholder="Préciser l'événement ou le risque ayant imposé l'arrêt temporaire..."
+            rows={2}
+            className="text-sm"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowSuspendForm(false)}
+            >
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={isPending || !suspensionReason.trim()}
+              onClick={handleSuspend}
+            >
+              Confirmer la Suspension
             </Button>
           </div>
         </div>

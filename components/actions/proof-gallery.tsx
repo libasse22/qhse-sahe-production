@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 interface ProofGalleryProps {
   actionId?: string;
   incidentId?: string;
+  workPermitId?: string;
 }
 
 const STAGE_CONFIG: Record<ProofStage, { title: string; badgeVariant: "destructive" | "warning" | "success"; description: string }> = {
@@ -32,17 +33,17 @@ const STAGE_CONFIG: Record<ProofStage, { title: string; badgeVariant: "destructi
   },
 };
 
-export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
+export function ProofGallery({ actionId, incidentId, workPermitId }: ProofGalleryProps) {
   const [proofs, setProofs] = useState<SituationProof[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     loadProofs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionId, incidentId]);
+  }, [actionId, incidentId, workPermitId]);
 
   async function loadProofs() {
-    const data = await listSituationProofs({ actionId, incidentId });
+    const data = await listSituationProofs({ actionId, incidentId, workPermitId });
     setProofs(data);
   }
 
@@ -53,7 +54,7 @@ export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
 
     setIsUploading(true);
     try {
-      const target = await createUploadTarget(actionId ?? incidentId ?? "general", file.name);
+      const target = await createUploadTarget(actionId ?? incidentId ?? workPermitId ?? "general", file.name);
       if ("error" in target) throw new Error(target.error);
 
       const supabase = createClient();
@@ -66,6 +67,7 @@ export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
       await confirmSituationProof({
         actionId,
         incidentId,
+        workPermitId,
         stage,
         storagePath: target.path,
         caption: `Preuve ${stage.toUpperCase()}`,
@@ -73,16 +75,20 @@ export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
 
       await loadProofs();
     } catch {
-      alert("Impossible de télécharger la photo de preuve.");
+      alert("Impossible de télécharger le fichier de preuve.");
     } finally {
       setIsUploading(false);
     }
   }
 
   async function handleDelete(proofId: string, storagePath: string) {
-    if (!confirm("Supprimer cette preuve photographique ?")) return;
-    await deleteSituationProof(proofId, storagePath);
-    await loadProofs();
+    if (!confirm("Supprimer cette preuve justificative ?")) return;
+    const res = await deleteSituationProof(proofId, storagePath);
+    if (res.error) {
+      alert(res.error);
+    } else {
+      await loadProofs();
+    }
   }
 
   return (
@@ -93,12 +99,12 @@ export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
             <ImageIcon className="h-5 w-5 text-primary" />
             Preuves Terrain (AVANT / PENDANT / APRÈS)
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
+          <Badge variant="outline" className="text-xs font-semibold">
             {proofs.length} Preuve(s) enregistrée(s)
           </Badge>
         </div>
         <CardDescription>
-          Photos horodatées attestant de la résolution effective de la situation.
+          Pièces justificatives recevables (photos, vidéos, documents) attestant de la réalisation conforme.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -116,7 +122,7 @@ export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
                   <label className="cursor-pointer">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*,application/pdf"
                       className="hidden"
                       onChange={(e) => handleFileUpload(e, stage)}
                       disabled={isUploading}
@@ -132,7 +138,7 @@ export function ProofGallery({ actionId, incidentId }: ProofGalleryProps) {
 
                 {stageProofs.length === 0 ? (
                   <div className="flex h-24 items-center justify-center rounded-md border border-dashed border-border bg-background/50 text-[11px] text-muted-foreground">
-                    Aucune photo ({stage})
+                    Aucune preuve ({stage})
                   </div>
                 ) : (
                   <div className="space-y-2">

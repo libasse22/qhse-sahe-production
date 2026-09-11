@@ -106,18 +106,19 @@ export default async function IncidentDetailPage({ params }: { params: Promise<{
 
           <Card>
             <CardHeader>
-              <CardTitle>Actions correctives ({actions.length})</CardTitle>
-              <CardDescription>Mesures engagées pour traiter cet incident.</CardDescription>
+              <CardTitle>Actions CAPA associées ({actions.length})</CardTitle>
+              <CardDescription>Mesures correctives et préventives engagées pour cet incident.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {actions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Aucune action corrective créée.</p>
+                <p className="text-sm text-muted-foreground">Aucune action CAPA créée.</p>
               ) : (
                 <ul className="space-y-3">
                   {actions.map((action) => (
-                    <li key={action.id} className="rounded-lg border border-border p-3">
+                    <li key={action.id} className="rounded-lg border border-border p-3 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div>
+                          <span className="font-mono text-xs font-bold text-primary">{action.codeReference}</span>
                           <p className="text-sm font-medium">{action.description}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             Responsable : {action.responsableName} · Échéance :{" "}
@@ -127,8 +128,8 @@ export default async function IncidentDetailPage({ params }: { params: Promise<{
                         <ActionStatusBadge action={action} />
                       </div>
                       {(isQhseOrAdmin || action.responsableId === profile?.id) && (
-                        <div className="mt-3 w-48">
-                          <ActionStatusSelect actionId={action.id} incidentId={id} status={action.status} />
+                        <div className="pt-2 border-t border-border">
+                          <ActionStatusSelect action={action} incidentId={id} canManage={isQhseOrAdmin} />
                         </div>
                       )}
                     </li>

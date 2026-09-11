@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/services/auth.service";
+import { logActionHistoryEvent, getActionById } from "@/lib/services/actions.service";
 
 export type ProofStage = "avant" | "pendant" | "apres";
 
@@ -10,6 +11,7 @@ export interface SituationProof {
   id: string;
   incidentId: string | null;
   actionId: string | null;
+  workPermitId: string | null;
   stage: ProofStage;
   storagePath: string;
   caption: string;
@@ -25,6 +27,7 @@ const SIGNED_URL_TTL_SECONDS = 60 * 60; // 1 heure
 export async function listSituationProofs(params: {
   incidentId?: string;
   actionId?: string;
+  workPermitId?: string;
 }): Promise<SituationProof[]> {
   const supabase = await createClient();
   let query = supabase
@@ -37,6 +40,9 @@ export async function listSituationProofs(params: {
   }
   if (params.actionId) {
     query = query.eq("action_id", params.actionId);
+  }
+  if (params.workPermitId) {
+    query = query.eq("work_permit_id", params.workPermitId);
   }
 
   const { data, error } = await query;
@@ -53,6 +59,7 @@ export async function listSituationProofs(params: {
         id: row.id,
         incidentId: row.incident_id,
         actionId: row.action_id,
+        workPermitId: row.work_permit_id,
         stage: row.stage as ProofStage,
         storagePath: row.storage_path,
         caption: row.caption ?? "",
@@ -68,6 +75,7 @@ export async function listSituationProofs(params: {
 export async function confirmSituationProof(params: {
   incidentId?: string;
   actionId?: string;
+  workPermitId?: string;
   stage: ProofStage;
   storagePath: string;
   caption?: string;
@@ -82,6 +90,7 @@ export async function confirmSituationProof(params: {
   const { error } = await supabase.from("situation_proofs").insert({
     incident_id: params.incidentId ?? null,
     action_id: params.actionId ?? null,
+    work_permit_id: params.workPermitId ?? null,
     stage: params.stage,
     storage_path: params.storagePath,
     caption: params.caption ?? "",
@@ -92,8 +101,17 @@ export async function confirmSituationProof(params: {
     return { error: "Impossible d'enregistrer les métadonnées de la preuve." };
   }
 
+  if (params.actionId) {
+    await logActionHistoryEvent({
+      actionId: params.actionId,
+      eventType: "proof_added",
+      comment: `Ajout d'une preuve terrain [Étape : ${params.stage.toUpperCase()}]${params.caption ? ` : ${params.caption}` : ""}`,
+    });
+  }
+
   if (params.incidentId) revalidatePath(`/incidents/${params.incidentId}`);
   if (params.actionId) revalidatePath("/actions");
+  if (params.workPermitId) revalidatePath(`/permis-de-travail/${params.workPermitId}`);
   return { error: null };
 }
 
@@ -102,11 +120,32 @@ export async function deleteSituationProof(
   storagePath: string,
 ): Promise<ActionResult> {
   const supabase = await createClient();
+
+  // Contrôle d'immuabilité : vérifier si la preuve appartient à une action clôturée ou rejetée
+  const { data: proof } = await supabase.from("situation_proofs").select("action_id").eq("id", proofId).single();
+
+  if (proof?.action_id) {
+    const action = await getActionById(proof.action_id);
+    if (action && (action.status === "cloturee" || action.status === "rejetee")) {
+      return {
+        error: "Impossible de supprimer la preuve d'une action CAPA clôturée ou rejetée (dossier d'audit verrouillé).",
+      };
+    }
+  }
+
   await supabase.storage.from(BUCKET).remove([storagePath]);
   const { error } = await supabase.from("situation_proofs").delete().eq("id", proofId);
 
   if (error) {
     return { error: "Impossible de supprimer cette preuve." };
+  }
+
+  if (proof?.action_id) {
+    await logActionHistoryEvent({
+      actionId: proof.action_id,
+      eventType: "proof_removed",
+      comment: "Suppression d'une preuve justificative.",
+    });
   }
 
   revalidatePath("/actions");
