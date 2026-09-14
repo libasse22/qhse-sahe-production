@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/services/auth.service";
 import type { WorkPermit, WorkPermitStatus, WorkPermitType, SafetyMeasure } from "@/lib/types/permits";
+import { PERMIT_QUESTIONNAIRES } from "@/lib/constants/permit-questionnaires";
 
 const PERMIT_SELECT =
   "*, applicant:profiles!work_permits_applicant_id_fkey(full_name), approver:profiles!work_permits_approver_id_fkey(full_name), site:sites(name), equipment:equipment(name)";
@@ -201,6 +202,37 @@ export async function createWorkPermit(params: {
   return { error: null, permitId: data.id };
 }
 
+function isQuestionnaireNonCompliant(
+  permitType: WorkPermitType,
+  questionnaireAnswers?: Record<string, any> | null
+): boolean {
+  const questions = PERMIT_QUESTIONNAIRES[permitType] || [];
+  const answers = questionnaireAnswers || {};
+
+  return questions.some((q) => {
+    const val = answers[q.id];
+    const isMissing =
+      val === undefined ||
+      val === null ||
+      (typeof val === "string" && val.trim() === "");
+
+    if (q.critical && isMissing) {
+      return true;
+    }
+
+    if (
+      q.blockingValue &&
+      val !== undefined &&
+      val !== null &&
+      val.toString().toLowerCase() === q.blockingValue.toLowerCase()
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+}
+
 export async function updateWorkPermitStatus(
   permitId: string,
   status: WorkPermitStatus,
@@ -225,20 +257,16 @@ export async function updateWorkPermitStatus(
 
   // CONTRÔLE SERVEUR DES POINTS BLOQUANTS CRITIQUES (SECTION 2)
   if (status === "approuve" || status === "en_cours") {
-    if (currentPermit.permit_type && currentPermit.questionnaire_answers) {
-      const { PERMIT_QUESTIONNAIRES } = await import("@/lib/constants/permit-questionnaires");
-      const questions = PERMIT_QUESTIONNAIRES[currentPermit.permit_type as WorkPermitType] || [];
-      const answers = currentPermit.questionnaire_answers as Record<string, any>;
-
-      const blockingQuestions = questions.filter((q) => {
-        if (!q.blockingValue) return false;
-        const ans = answers[q.id];
-        return ans && ans.toString().toLowerCase() === q.blockingValue.toLowerCase();
-      });
-
-      if (blockingQuestions.length > 0) {
+    if (currentPermit.permit_type) {
+      if (
+        isQuestionnaireNonCompliant(
+          currentPermit.permit_type as WorkPermitType,
+          currentPermit.questionnaire_answers
+        )
+      ) {
         return {
-          error: `🔴 BLOQUANT : Impossible d'autoriser ce permis. ${blockingQuestions.length} point(s) de sécurité critique(s) non conforme(s) : ${blockingQuestions.map((q) => q.label).join("; ")}.`,
+          error:
+            "Impossible d'approuver : le questionnaire contient des questions critiques sans réponse ou non conformes.",
         };
       }
     }
@@ -365,20 +393,16 @@ export async function resumeWorkPermit(permitId: string, comment?: string): Prom
   const oldStatus = currentPermit.status as WorkPermitStatus;
 
   // CONTRÔLE SERVEUR AVANT LEVÉE DE SUSPENSION
-  if (currentPermit.permit_type && currentPermit.questionnaire_answers) {
-    const { PERMIT_QUESTIONNAIRES } = await import("@/lib/constants/permit-questionnaires");
-    const questions = PERMIT_QUESTIONNAIRES[currentPermit.permit_type as WorkPermitType] || [];
-    const answers = currentPermit.questionnaire_answers as Record<string, any>;
-
-    const blockingQuestions = questions.filter((q) => {
-      if (!q.blockingValue) return false;
-      const ans = answers[q.id];
-      return ans && ans.toString().toLowerCase() === q.blockingValue.toLowerCase();
-    });
-
-    if (blockingQuestions.length > 0) {
+  if (currentPermit.permit_type) {
+    if (
+      isQuestionnaireNonCompliant(
+        currentPermit.permit_type as WorkPermitType,
+        currentPermit.questionnaire_answers
+      )
+    ) {
       return {
-        error: `🔴 BLOQUANT : Le permis contient encore des non-conformités critiques : ${blockingQuestions.map((q) => q.label).join("; ")}.`,
+        error:
+          "Impossible d'approuver : le questionnaire contient des questions critiques sans réponse ou non conformes.",
       };
     }
   }
