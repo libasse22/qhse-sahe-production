@@ -100,6 +100,33 @@ export async function getWorkPermitById(id: string): Promise<WorkPermit | null> 
   return toWorkPermit(data as unknown as PermitRow);
 }
 
+async function checkUserPermission(supabase: any, permissionCode: string): Promise<boolean> {
+  const { data: hasPerm, error } = await supabase.rpc("has_permission", {
+    permission_code: permissionCode,
+  });
+
+  if (!error && typeof hasPerm === "boolean" && hasPerm) {
+    return true;
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.role === "admin" || profile?.role === "manager_qhse") {
+    return true;
+  }
+
+  return false;
+}
+
 export async function createWorkPermit(params: {
   title: string;
   permitType: WorkPermitType;
@@ -124,6 +151,11 @@ export async function createWorkPermit(params: {
   } = await supabase.auth.getUser();
 
   if (!user) return { error: "Session expirée. Reconnectez-vous." };
+
+  const hasPerm = await checkUserPermission(supabase, "permits.create");
+  if (!hasPerm) {
+    return { error: "Permission insuffisante" };
+  }
 
   const refYear = new Date().getFullYear();
   const refRandom = Math.floor(1000 + Math.random() * 9000);
@@ -262,6 +294,25 @@ export async function updateWorkPermitStatus(
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) return { error: "Session expirée. Reconnectez-vous." };
+
+  // VÉRIFICATION DES PERMISSIONS UTILISATEUR
+  let requiredPermission: string | null = null;
+  if (status === "approuve" || status === "refuse") {
+    requiredPermission = "permits.approve";
+  } else if (status === "suspendu") {
+    requiredPermission = "permits.suspend";
+  } else if (status === "cloture" || status === "annule") {
+    requiredPermission = "permits.close";
+  }
+
+  if (requiredPermission) {
+    const hasPerm = await checkUserPermission(supabase, requiredPermission);
+    if (!hasPerm) {
+      return { error: "Permission insuffisante" };
+    }
+  }
+
   const { data: currentPermit } = await supabase
     .from("work_permits")
     .select("applicant_id, reference, title, status, permit_type, questionnaire_answers")
@@ -361,6 +412,13 @@ export async function suspendWorkPermit(permitId: string, reason: string): Promi
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) return { error: "Session expirée. Reconnectez-vous." };
+
+  const hasPerm = await checkUserPermission(supabase, "permits.suspend");
+  if (!hasPerm) {
+    return { error: "Permission insuffisante" };
+  }
+
   const { data: currentPermit } = await supabase
     .from("work_permits")
     .select("status")
@@ -406,6 +464,13 @@ export async function resumeWorkPermit(permitId: string, comment?: string): Prom
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Session expirée. Reconnectez-vous." };
+
+  const hasPerm = await checkUserPermission(supabase, "permits.suspend");
+  if (!hasPerm) {
+    return { error: "Permission insuffisante" };
+  }
 
   const { data: currentPermit } = await supabase
     .from("work_permits")
