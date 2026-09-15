@@ -196,6 +196,18 @@ export async function createWorkPermit(params: {
     return { error: "Permission insuffisante" };
   }
 
+  const startMs = new Date(params.startTime).getTime();
+  const endMs = new Date(params.endTime).getTime();
+  if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) {
+    return { error: "Les dates et heures de début et de fin sont invalides." };
+  }
+  const durationHours = (endMs - startMs) / (1000 * 60 * 60);
+  if (durationHours > 8) {
+    return {
+      error: `Durée non conforme : la durée maximale autorisée pour un permis de travail est de 8 heures (durée demandée : ${durationHours.toFixed(1)}h).`,
+    };
+  }
+
   const refYear = new Date().getFullYear();
   const refRandom = Math.floor(1000 + Math.random() * 9000);
   const reference = `PTW-${refYear}-${refRandom}`;
