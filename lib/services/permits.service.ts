@@ -241,6 +241,17 @@ function isQuestionnaireNonCompliant(
   });
 }
 
+const ALLOWED_TRANSITIONS: Record<WorkPermitStatus, WorkPermitStatus[]> = {
+  brouillon: ["en_attente", "annule"],
+  en_attente: ["approuve", "refuse", "annule"],
+  approuve: ["en_cours", "suspendu", "annule"],
+  en_cours: ["suspendu", "cloture", "annule"],
+  suspendu: ["en_cours", "annule"],
+  refuse: ["en_attente"],
+  cloture: [],
+  annule: [],
+};
+
 export async function updateWorkPermitStatus(
   permitId: string,
   status: WorkPermitStatus,
@@ -262,6 +273,14 @@ export async function updateWorkPermitStatus(
   }
 
   const oldStatus = currentPermit.status as WorkPermitStatus;
+
+  // VÉRIFICATION MACHINE À ÉTATS
+  const allowed = ALLOWED_TRANSITIONS[oldStatus] || [];
+  if (!allowed.includes(status)) {
+    return {
+      error: `Transition non autorisée : ${oldStatus} → ${status}`,
+    };
+  }
 
   // CONTRÔLE SERVEUR DES POINTS BLOQUANTS CRITIQUES (SECTION 2)
   if (status === "approuve" || status === "en_cours") {
