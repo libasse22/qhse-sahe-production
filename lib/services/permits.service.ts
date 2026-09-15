@@ -207,7 +207,15 @@ function isQuestionnaireNonCompliant(
   questionnaireAnswers?: Record<string, any> | null
 ): boolean {
   const questions = PERMIT_QUESTIONNAIRES[permitType] || [];
+
+  if (questions.length === 0) {
+    return false;
+  }
+
   const answers = questionnaireAnswers || {};
+  if (Object.keys(answers).length === 0) {
+    return true;
+  }
 
   return questions.some((q) => {
     const val = answers[q.id];
