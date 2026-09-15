@@ -127,6 +127,45 @@ async function checkUserPermission(supabase: any, permissionCode: string): Promi
   return false;
 }
 
+async function getApproverUserIds(supabase: any, currentUserId: string): Promise<string[]> {
+  const { data: activeProfiles } = await supabase
+    .from("profiles")
+    .select("id, role, role_id")
+    .eq("status", "active")
+    .neq("id", currentUserId);
+
+  if (!activeProfiles || activeProfiles.length === 0) return [];
+
+  const { data: perm } = await supabase
+    .from("permissions")
+    .select("id")
+    .eq("code", "permits.approve")
+    .maybeSingle();
+
+  let roleIdsWithApprove: Set<string> = new Set();
+  if (perm?.id) {
+    const { data: rp } = await supabase
+      .from("role_permissions")
+      .select("role_id")
+      .eq("permission_id", perm.id);
+    if (rp) {
+      roleIdsWithApprove = new Set(rp.map((r: any) => r.role_id).filter(Boolean));
+    }
+  }
+
+  return activeProfiles
+    .filter((p: any) => {
+      if (p.role_id && roleIdsWithApprove.has(p.role_id)) {
+        return true;
+      }
+      if (p.role === "admin" || p.role === "manager_qhse") {
+        return true;
+      }
+      return false;
+    })
+    .map((p: any) => p.id);
+}
+
 export async function createWorkPermit(params: {
   title: string;
   permitType: WorkPermitType;
@@ -206,24 +245,18 @@ export async function createWorkPermit(params: {
     // Non-blocking history
   }
 
-  // Notification Web Push non-bloquante pour les managers / valideurs
+  // Notification Web Push non-bloquante pour les valideurs / approbateurs (permission permits.approve)
   try {
     const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
-    const { data: qhseUsers } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("status", "active")
-      .neq("id", user.id);
+    const approverIds = await getApproverUserIds(supabase, user.id);
 
-    if (qhseUsers) {
-      for (const q of qhseUsers as any[]) {
-        void sendWebPushToUser(q.id, {
-          title: "📄 Permis de travail à valider",
-          body: `Titre : ${params.title} (${reference})`,
-          url: `/permis-de-travail/${data.id}`,
-          tag: `ptw-${data.id}`,
-        });
-      }
+    for (const approverId of approverIds) {
+      void sendWebPushToUser(approverId, {
+        title: "📄 Permis de travail à valider",
+        body: `Titre : ${params.title} (${reference})`,
+        url: `/permis-de-travail/${data.id}`,
+        tag: `ptw-${data.id}`,
+      });
     }
   } catch {
     // Non-blocking
