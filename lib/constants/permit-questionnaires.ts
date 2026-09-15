@@ -38,7 +38,7 @@ export const PERMIT_QUESTIONNAIRES: Record<WorkPermitType, QuestionnaireQuestion
     { id: "ec_espace_id", label: "Espace confiné formellement identifié et balisé", type: "yes_no", critical: true, blockingValue: "non" },
     { id: "ec_autorisation_entree", label: "Autorisation préalable d'entrée signée", type: "yes_no", critical: true, blockingValue: "non" },
     { id: "ec_analyse_atmo", label: "Analyse atmosphérique préalable obligatoire", type: "yes_no", critical: true, blockingValue: "non" },
-    { id: "ec_valeur_o2", label: "Teneur en Oxygène (O2) [Objectif: 19.5% - 22 font-mono]", type: "number", unit: "%" },
+    { id: "ec_valeur_o2", label: "Teneur en Oxygène (O2) [Objectif: 19.5% - 22%]", type: "number", unit: "%" },
     { id: "ec_valeur_lie", label: "Teneur Gaz Inflammables (LIE) [Max: 0%]", type: "number", unit: "% LIE" },
     { id: "ec_valeur_toxiques", label: "Mesures Gaz Toxiques (H2S, CO ppm)", type: "text" },
     { id: "ec_ventilation_forcee", label: "Ventilation mécanique forcée en service", type: "yes_no", critical: true },
@@ -68,15 +68,6 @@ export const PERMIT_QUESTIONNAIRES: Record<WorkPermitType, QuestionnaireQuestion
     { id: "loto_test_zero", label: "Test d'état zéro d'énergie (Essai de redémarrage)", type: "compliance", critical: true, blockingValue: "non_conforme" },
   ],
 
-  fouille: [
-    { id: "ex_reseaux_identifies", label: "Réseaux enterrés (électricité, gaz, eau) localisés sur plans (DICT)", type: "yes_no", critical: true, blockingValue: "non" },
-    { id: "ex_profondeur", label: "Profondeur maximale prévue", type: "number", unit: "m" },
-    { id: "ex_stabilite_terrain", label: "Stabilité des terres évaluée / Risque d'éboulement", type: "compliance", critical: true, blockingValue: "non_conforme" },
-    { id: "ex_blindage_talutage", label: "Blindage ou talutage des parois obligatoire si profondeur > 1.30 m", type: "yes_no", critical: true, blockingValue: "non" },
-    { id: "ex_acces_balisage", label: "Échelles d'accès/sortie et balisage rigide du contour", type: "yes_no", critical: true, blockingValue: "non" },
-    { id: "ex_engins", label: "Distance de sécurité minimale pour la circulation des engins lourd (2m)", type: "yes_no", critical: true },
-  ],
-
   excavation: [
     { id: "ex_reseaux_identifies", label: "Réseaux enterrés (électricité, gaz, eau) localisés sur plans (DICT)", type: "yes_no", critical: true, blockingValue: "non" },
     { id: "ex_profondeur", label: "Profondeur maximale prévue", type: "number", unit: "m" },
@@ -85,6 +76,10 @@ export const PERMIT_QUESTIONNAIRES: Record<WorkPermitType, QuestionnaireQuestion
     { id: "ex_acces_balisage", label: "Échelles d'accès/sortie et balisage rigide du contour", type: "yes_no", critical: true, blockingValue: "non" },
     { id: "ex_engins", label: "Distance de sécurité minimale pour la circulation des engins lourd (2m)", type: "yes_no", critical: true },
   ],
+
+  get fouille() {
+    return this.excavation;
+  },
 
   levage: [
     { id: "lev_charge_poids", label: "Poids de la charge et centre de gravité connus", type: "number", unit: "kg" },
