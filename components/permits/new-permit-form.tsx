@@ -9,27 +9,62 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { Equipment } from "@/lib/types/equipment";
-import { PERMIT_TYPE_LABELS, type WorkPermitType, type SafetyMeasure } from "@/lib/types/permits";
+import {
+  PERMIT_TYPE_LABELS,
+  type WorkPermitType,
+  type SafetyMeasure,
+  type WorkPermitTemplate,
+  type WorkPermitTemplateSnapshot,
+} from "@/lib/types/permits";
+import { DEFAULT_TEMPLATE_SNAPSHOT } from "@/lib/constants/permit-questionnaires";
 import { DynamicPermitQuestionnaire } from "@/components/permits/dynamic-permit-questionnaire";
-import { ShieldAlert, AlertCircle } from "lucide-react";
+import { ShieldAlert, AlertCircle, Layers } from "lucide-react";
 
-export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] }) {
+export function NewPermitForm({
+  equipmentList,
+  availableTemplates = [],
+}: {
+  equipmentList: Equipment[];
+  availableTemplates?: WorkPermitTemplate[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [permitType, setPermitType] = useState<WorkPermitType>("hauteur");
+  const defaultActiveTemplate =
+    availableTemplates.find((t) => t.isDefault && t.status === "actif") || availableTemplates[0];
+
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
+    defaultActiveTemplate?.id || "default"
+  );
+
+  const activeTemplate = availableTemplates.find((t) => t.id === selectedTemplateId);
+  const selectedTemplateSnapshot: WorkPermitTemplateSnapshot =
+    activeTemplate?.activeVersion?.configuration || DEFAULT_TEMPLATE_SNAPSHOT;
+
+  const enabledTypes: WorkPermitType[] =
+    selectedTemplateSnapshot.enabledPermitTypes || Object.keys(PERMIT_TYPE_LABELS) as WorkPermitType[];
+
+  const [permitType, setPermitType] = useState<WorkPermitType>(
+    enabledTypes[0] || "hauteur"
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [equipmentId, setEquipmentId] = useState("");
+  const [contractorCompany, setContractorCompany] = useState("");
+  const [contractorContactName, setContractorContactName] = useState("");
+  const [contractorContactPhone, setContractorContactPhone] = useState("");
   const [startTime, setStartTime] = useState(new Date().toISOString().slice(0, 16));
   const [endTime, setEndTime] = useState(
-    new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16),
+    new Date(Date.now() + (selectedTemplateSnapshot.maxValidityHours || 8) * 3600 * 1000)
+      .toISOString()
+      .slice(0, 16)
   );
 
   // Dynamic Questionnaire & Safety Checklists States
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<Record<string, any>>({});
+  const [customFieldsData, setCustomFieldsData] = useState<Record<string, any>>({});
   const [beforeMeasures, setBeforeMeasures] = useState<SafetyMeasure[]>([]);
   const [duringMeasures, setDuringMeasures] = useState<SafetyMeasure[]>([]);
   const [afterMeasures, setAfterMeasures] = useState<SafetyMeasure[]>([]);
@@ -37,9 +72,23 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
   const [emergencyPlan, setEmergencyPlan] = useState("");
   const [hasBlockingItems, setHasBlockingItems] = useState(false);
 
+  function handleTemplateChange(templateId: string) {
+    setSelectedTemplateId(templateId);
+    const tmpl = availableTemplates.find((t) => t.id === templateId);
+    const snap = tmpl?.activeVersion?.configuration || DEFAULT_TEMPLATE_SNAPSHOT;
+    const types = snap.enabledPermitTypes || (Object.keys(PERMIT_TYPE_LABELS) as WorkPermitType[]);
+
+    if (!types.includes(permitType)) {
+      setPermitType(types[0] || "hauteur");
+    }
+    setQuestionnaireAnswers({});
+    setCustomFieldsData({});
+  }
+
   function handleTypeChange(newType: WorkPermitType) {
     setPermitType(newType);
     setQuestionnaireAnswers({});
+    setCustomFieldsData({});
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -52,7 +101,9 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
     }
 
     if (hasBlockingItems) {
-      setError("🔴 BLOQUANT : Des éléments critiques ne sont pas conformes. Veuillez corriger les points bloquants avant d'autoriser ce permis.");
+      setError(
+        "🔴 BLOQUANT : Des éléments critiques ne sont pas conformes. Veuillez corriger les points bloquants avant d'autoriser ce permis."
+      );
       return;
     }
 
@@ -65,16 +116,21 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
         permitType,
         description,
         location,
+        contractorCompany: contractorCompany.trim() || undefined,
+        contractorContactName: contractorContactName.trim() || undefined,
+        contractorContactPhone: contractorContactPhone.trim() || undefined,
         equipmentId: equipmentId || undefined,
         startTime,
         endTime,
         safetyMeasures: allMeasures,
         questionnaireAnswers,
+        customFieldsData,
         beforeMeasures,
         duringMeasures,
         afterMeasures,
         epiRequirements,
         emergencyPlan: emergencyPlan ? { text: emergencyPlan } : undefined,
+        templateId: selectedTemplateId === "default" ? undefined : selectedTemplateId,
       });
 
       if (res.error) {
@@ -91,8 +147,29 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
       <div className="rounded-lg border border-border bg-card p-4 space-y-4">
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 border-b border-border pb-2">
           <ShieldAlert className="h-4 w-4 text-primary" />
-          Identification de l&apos;Intervention
+          Identification & Référentiel de l&apos;Intervention
         </h3>
+
+        <div className="space-y-2">
+          <Label htmlFor="templateSelect" className="flex items-center gap-1.5 font-medium">
+            <Layers className="h-4 w-4 text-primary" /> Référentiel de permis de travail
+          </Label>
+          <select
+            id="templateSelect"
+            value={selectedTemplateId}
+            onChange={(e) => handleTemplateChange(e.target.value)}
+            className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="default">QHSE Duo — Référentiel Standard (v1.0)</option>
+            {availableTemplates
+              .filter((t) => t.status === "actif")
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.activeVersion ? t.activeVersion.versionLabel : `v${t.versionMajor}.${t.versionMinor}`})
+                </option>
+              ))}
+          </select>
+        </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -102,9 +179,9 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
               value={permitType}
               onChange={(e) => handleTypeChange(e.target.value as WorkPermitType)}
             >
-              {Object.entries(PERMIT_TYPE_LABELS).map(([val, lbl]) => (
+              {enabledTypes.map((val) => (
                 <option key={val} value={val}>
-                  {lbl}
+                  {PERMIT_TYPE_LABELS[val] || val}
                 </option>
               ))}
             </Select>
@@ -162,6 +239,36 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
           />
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-3 pt-2 border-t border-border">
+          <div className="space-y-2">
+            <Label htmlFor="contractorCompany">Entreprise Extérieure (EE) / Prestataire</Label>
+            <Input
+              id="contractorCompany"
+              value={contractorCompany}
+              onChange={(e) => setContractorCompany(e.target.value)}
+              placeholder="Nom de l'entreprise sous-traitante..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contractorContactName">Contact d'urgence EE / Responsable</Label>
+            <Input
+              id="contractorContactName"
+              value={contractorContactName}
+              onChange={(e) => setContractorContactName(e.target.value)}
+              placeholder="Nom & prénom du contact..."
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="contractorContactPhone">Téléphone d'urgence EE</Label>
+            <Input
+              id="contractorContactPhone"
+              value={contractorContactPhone}
+              onChange={(e) => setContractorContactPhone(e.target.value)}
+              placeholder="+221 77..."
+            />
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="startTime">Date & Heure de Début</Label>
@@ -189,7 +296,9 @@ export function NewPermitForm({ equipmentList }: { equipmentList: Equipment[] })
       {/* 2. QUESTIONNAIRE DYNAMIQUE & CHECKLISTS AVANT / PENDANT / APRÈS / EPI */}
       <DynamicPermitQuestionnaire
         permitType={permitType}
+        templateSnapshot={selectedTemplateSnapshot}
         onQuestionnaireChange={setQuestionnaireAnswers}
+        onCustomFieldsDataChange={setCustomFieldsData}
         onBeforeMeasuresChange={setBeforeMeasures}
         onDuringMeasuresChange={setDuringMeasures}
         onAfterMeasuresChange={setAfterMeasures}

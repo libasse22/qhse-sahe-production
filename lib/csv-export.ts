@@ -56,3 +56,35 @@ export function exportEpiToCsv(assignments: any[]) {
   downloadCsv(`registre_epi_${dateStr}.csv`, headers, rows);
 }
 
+export function exportQhseReportToCsv(reportData: any) {
+  const headers = ["Domaine / Catégorie", "Indicateur / Libellé", "Valeur / Résultat", "Statut / Remarque"];
+  const rows: (string | number)[][] = [
+    ["SYNTHÈSE EXÉCUTIVE", "Période", reportData.periodLabel || "—", reportData.companyName || "—"],
+    ["SYNTHÈSE EXÉCUTIVE", "Score Global Conformité", reportData.globalComplianceScore !== null ? `${reportData.globalComplianceScore}%` : "N/A", reportData.globalStatus || "NA"],
+    
+    ["INCIDENTS", "Total Incidents", reportData.incidents?.total?.value ?? "N/A", "Sur la période"],
+    ["INCIDENTS", "Incidents Critiques", reportData.incidents?.critique ?? 0, "Niveau 4"],
+    ["INCIDENTS", "Taux de Traitement", reportData.incidents?.tauxTraitement?.value ?? "N/A", reportData.incidents?.tauxTraitement?.isNa ? "Aucune donnée" : "Conforme"],
+    
+    ["INSPECTIONS", "Inspections Réalisées", reportData.inspections?.total?.value ?? "N/A", "Sur la période"],
+    ["INSPECTIONS", "Taux de Conformité", reportData.inspections?.tauxConformite?.value ?? "N/A", reportData.inspections?.tauxConformite?.isNa ? "Aucune donnée" : "Conforme"],
+    
+    ["CAPA", "Actions Totales", reportData.capa?.total?.value ?? "N/A", "Sur la période"],
+    ["CAPA", "Actions Clôturées", reportData.capa?.cloturees ?? 0, "Actions terminées"],
+    ["CAPA", "Actions Bloquées", reportData.capa?.bloquees ?? 0, reportData.capa?.bloquees > 0 ? "Alerte Blocage" : "R.A.S."],
+    ["CAPA", "Actions En Retard", reportData.capa?.enRetard ?? 0, reportData.capa?.enRetard > 0 ? "Alerte Retard" : "R.A.S."],
+    ["CAPA", "Taux de Clôture", reportData.capa?.tauxCloture?.value ?? "N/A", reportData.capa?.tauxCloture?.isNa ? "Aucune donnée" : "Conforme"],
+    
+    ["PERMIS DE TRAVAIL", "Permis Émis", reportData.permits?.total?.value ?? "N/A", "Sur la période"],
+    ["PERMIS DE TRAVAIL", "Permis Actifs (En Cours)", reportData.permits?.actifs ?? 0, "Chantiers en cours"],
+    ["PERMIS DE TRAVAIL", "Permis Suspendus", reportData.permits?.suspendus ?? 0, reportData.permits?.suspendus > 0 ? "Alerte Suspension" : "R.A.S."],
+    
+    ["EPI", "Dotations Totales", reportData.epi?.totalAttribues?.value ?? "N/A", "Sur la période"],
+    ["EPI", "EPI Défectueux / À Remplacer", reportData.epi?.defectueux ?? 0, reportData.epi?.defectueux > 0 ? "Alerte Non-Conformité" : "R.A.S."],
+    ["EPI", "Taux de Conformité EPI", reportData.epi?.tauxConformite?.value ?? "N/A", reportData.epi?.tauxConformite?.isNa ? "Aucune donnée" : "Conforme"],
+  ];
+
+  const dateStr = new Date().toISOString().split("T")[0];
+  downloadCsv(`bilan_qhse_${dateStr}.csv`, headers, rows);
+}
+

@@ -55,8 +55,67 @@ export interface EpiAssignment {
   confirmedAt?: string | null;
   confirmedByUser?: boolean;
   signatureUrl?: string;
+  lastInspectedAt?: string | null;
+  lastInspectedById?: string | null;
   notes: string;
   createdAt: string;
+}
+
+export type EpiHistoryAction =
+  | "epi_attributed"
+  | "epi_checked"
+  | "epi_renewed"
+  | "epi_expired"
+  | "epi_retired"
+  | "epi_acknowledged"
+  | "epi_lost_damaged"
+  | "epi_modified";
+
+export interface EpiHistoryEvent {
+  id: string;
+  companyId: string;
+  assignmentId: string;
+  actorId: string;
+  actorName: string;
+  recipientId?: string | null;
+  recipientName?: string;
+  action: EpiHistoryAction;
+  comment?: string;
+  createdAt: string;
+}
+
+export type EpiWorkerItemStatus =
+  | "conforme"
+  | "a_controler"
+  | "manquant"
+  | "expire"
+  | "non_conforme";
+
+export interface EpiWorkerComplianceItem {
+  workerId?: string | null;
+  workerName: string;
+  requiredEpiId: string;
+  requiredEpiLabel: string;
+  status: EpiWorkerItemStatus;
+  assignmentId?: string | null;
+  assignmentStatus?: EpiAssignmentStatus | null;
+  conditionState?: EpiConditionState | null;
+  renewalDueAt?: string | null;
+  message?: string;
+}
+
+export interface EpiPermitComplianceResult {
+  permitId: string;
+  isCompliant: boolean;
+  totalRequired: number;
+  totalCompliant: number;
+  hasEpiRequirements: boolean;
+  status: "NA" | "CONFORME" | "NON_CONFORME" | "PENDING_WORKERS";
+  summary: string;
+  items: EpiWorkerComplianceItem[];
+  missingCount: number;
+  expiredCount: number;
+  defectiveCount: number;
 }
 
 export const EPI_CATEGORY_LABELS: Record<EpiCategory, string> = {

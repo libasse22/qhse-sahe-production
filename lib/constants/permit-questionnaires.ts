@@ -1,4 +1,4 @@
-import type { WorkPermitType, QuestionnaireQuestion, SafetyMeasure } from "@/lib/types/permits";
+import type { WorkPermitType, QuestionnaireQuestion, SafetyMeasure, WorkPermitTemplateSnapshot } from "@/lib/types/permits";
 
 export const PERMIT_QUESTIONNAIRES: Record<WorkPermitType, QuestionnaireQuestion[]> = {
   hauteur: [
@@ -170,3 +170,52 @@ export const DEFAULT_EPI_LIST = [
   { id: "ari", label: "Appareil Respiratoire Isolant (ARI)" },
   { id: "atex_comm", label: "Moyens de communication certifiés ATEX" },
 ];
+
+export const DEFAULT_TEMPLATE_SNAPSHOT: WorkPermitTemplateSnapshot = {
+  templateName: "QHSE Duo — Référentiel Standard",
+  versionLabel: "v1.0",
+  maxValidityHours: 8,
+  enabledPermitTypes: [
+    "hauteur",
+    "point_chaud",
+    "espace_confine",
+    "electrique",
+    "fouille",
+    "excavation",
+    "chimique",
+    "levage",
+    "consignation_loto",
+    "toiture",
+    "tuyauterie",
+    "maconnerie",
+    "autre",
+  ],
+  questionnaires: PERMIT_QUESTIONNAIRES,
+  beforeMeasures: STANDARD_BEFORE_MEASURES,
+  duringMeasures: STANDARD_DURING_MEASURES,
+  afterMeasures: STANDARD_AFTER_MEASURES,
+  epiList: DEFAULT_EPI_LIST,
+  equipmentList: [
+    "Échelle / Escabeau",
+    "Échafaudage fixe / mobile",
+    "Nacelle (PEMP)",
+    "Meuleuse / Tronçonneuse",
+    "Poste à souder",
+    "Chalumeau oxyacétylénique",
+    "Compresseur de chantier",
+    "Outillage manuel électroportatif",
+    "Véhicule / Engin de chantier",
+    "Système d'éclairage portatif 24V",
+    "Autre matériel spécifique",
+  ],
+  emergencyPlanConfig: {
+    alerte: "Contacter le PC Sécurité ou composer le numéro d'urgence interne",
+    evacuation: "Rejoindre immédiatement le point de rassemblement désigné",
+    secours: "Secouristes du travail (SST) identifiés et trousse de premiers secours à proximité",
+  },
+  signatureChain: [
+    "Demandeur (Responsable des travaux)",
+    "Chargé de consignation / Zone",
+    "Responsable QHSE / Validateur",
+  ],
+};

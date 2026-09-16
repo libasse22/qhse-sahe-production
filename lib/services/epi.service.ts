@@ -9,6 +9,8 @@ import type {
   EpiCategory,
   EpiConditionState,
   EpiAssignmentStatus,
+  EpiHistoryAction,
+  EpiHistoryEvent,
 } from "@/lib/types/epi";
 import { epiCatalogSchema, epiAssignmentSchema } from "@/lib/validation/epi.schema";
 
@@ -199,7 +201,68 @@ export async function listEpiAssignments(recipientId?: string): Promise<EpiAssig
     confirmedAt: row.confirmed_at || null,
     confirmedByUser: row.confirmed_by_user || false,
     signatureUrl: row.signature_url || "",
+    lastInspectedAt: row.last_inspected_at || null,
+    lastInspectedById: row.last_inspected_by || null,
     notes: row.notes || "",
+    createdAt: row.created_at,
+  }));
+}
+
+export async function logEpiHistory(params: {
+  assignmentId: string;
+  action: EpiHistoryAction;
+  comment?: string;
+  recipientId?: string;
+  recipientName?: string;
+}): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes?.user) return;
+
+    const { data: actorProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userRes.user.id)
+      .maybeSingle();
+
+    const actorName = actorProfile?.full_name || userRes.user.email || "Utilisateur";
+
+    await supabase.from("epi_history").insert({
+      assignment_id: params.assignmentId,
+      actor_id: userRes.user.id,
+      actor_name: actorName,
+      recipient_id: params.recipientId || null,
+      recipient_name: params.recipientName || "",
+      action: params.action,
+      comment: params.comment || "",
+    });
+  } catch (err) {
+    console.error("Error writing to epi_history:", err);
+  }
+}
+
+export async function listEpiHistory(assignmentId?: string): Promise<EpiHistoryEvent[]> {
+  const supabase = await createClient();
+  let query = supabase.from("epi_history").select("*").order("created_at", { ascending: false });
+
+  if (assignmentId) {
+    query = query.eq("assignment_id", assignmentId);
+  }
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  return data.map((row: any) => ({
+    id: row.id,
+    companyId: row.company_id,
+    assignmentId: row.assignment_id,
+    actorId: row.actor_id,
+    actorName: row.actor_name,
+    recipientId: row.recipient_id,
+    recipientName: row.recipient_name || "",
+    action: row.action as EpiHistoryAction,
+    comment: row.comment || "",
     createdAt: row.created_at,
   }));
 }
@@ -242,7 +305,7 @@ export async function createEpiAssignment(formData: FormData): Promise<ActionRes
   // Code de confirmation aléatoire à 6 chiffres
   const confirmationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  const { error } = await supabase.from("epi_assignments").insert({
+  const { data: inserted, error } = await supabase.from("epi_assignments").insert({
     catalog_id: catalogId,
     recipient_id: recipientId,
     assigned_by: userRes.user.id,
@@ -255,9 +318,18 @@ export async function createEpiAssignment(formData: FormData): Promise<ActionRes
     renewal_due_at: renewalDueAt ? new Date(renewalDueAt).toISOString() : null,
     confirmation_code: confirmationCode,
     notes,
-  });
+  }).select("id").single();
 
   if (error) return { error: "Impossible d'enregistrer l'attribution d'EPI." };
+
+  if (inserted?.id) {
+    await logEpiHistory({
+      assignmentId: inserted.id,
+      recipientId,
+      action: "epi_attributed",
+      comment: `Attribution initiale d'EPI (État: ${conditionState}, Code PIN: ${confirmationCode})`,
+    });
+  }
 
   revalidatePath("/epi");
   revalidatePath("/admin/utilisateurs");
@@ -279,6 +351,50 @@ export async function updateEpiAssignmentStatus(
 
   const { error } = await supabase.from("epi_assignments").update(updates).eq("id", id);
   if (error) return { error: "Erreur lors de la mise à jour de l'EPI." };
+
+  const historyAction: EpiHistoryAction =
+    status === "a_renouveler"
+      ? "epi_renewed"
+      : status === "restitue" || status === "perdu_endommage"
+      ? "epi_retired"
+      : "epi_checked";
+
+  await logEpiHistory({
+    assignmentId: id,
+    action: historyAction,
+    comment: `Statut EPI mis à jour vers '${status}'${conditionState ? ` (État: ${conditionState})` : ""}${renewalReason ? ` — ${renewalReason}` : ""}`,
+  });
+
+  revalidatePath("/epi");
+  return { error: null };
+}
+
+export async function inspectEpiAssignment(
+  assignmentId: string,
+  conditionState: EpiConditionState,
+  notes?: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const { data: userRes } = await supabase.auth.getUser();
+  if (!userRes?.user) return { error: "Session expirée" };
+
+  const { error } = await supabase
+    .from("epi_assignments")
+    .update({
+      condition_state: conditionState,
+      last_inspected_at: new Date().toISOString(),
+      last_inspected_by: userRes.user.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", assignmentId);
+
+  if (error) return { error: "Impossible d'enregistrer l'inspection de l'EPI." };
+
+  await logEpiHistory({
+    assignmentId,
+    action: "epi_checked",
+    comment: `Inspection périodique effectuée. Nouvel état: ${conditionState}${notes ? ` (${notes})` : ""}`,
+  });
 
   revalidatePath("/epi");
   return { error: null };
@@ -311,9 +427,101 @@ export async function confirmEpiReceipt(assignmentId: string, providedCode?: str
 
   if (error) return { error: "Impossible de confirmer la réception de l'EPI." };
 
+  await logEpiHistory({
+    assignmentId,
+    action: "epi_acknowledged",
+    comment: "Réception de l'EPI confirmée authentiquement (Statut passé à 'en_service')",
+  });
+
   revalidatePath("/epi");
   revalidatePath("/ouvrier");
   return { error: null };
+}
+
+export async function checkEpiRenewalDeadlines(): Promise<{ notifiedCount: number }> {
+  const supabase = await createClient();
+  const now = new Date();
+
+  const day30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const { data: upcoming } = await supabase
+    .from("epi_assignments")
+    .select(`
+      id,
+      recipient_id,
+      renewal_due_at,
+      status,
+      catalog:epi_catalog(name),
+      recipient:profiles!epi_assignments_recipient_id_fkey(full_name)
+    `)
+    .neq("status", "restitue")
+    .neq("status", "perdu_endommage")
+    .not("renewal_due_at", "is", null)
+    .lte("renewal_due_at", day30.toISOString());
+
+  if (!upcoming || upcoming.length === 0) return { notifiedCount: 0 };
+
+  const { data: managers } = await supabase
+    .from("user_roles")
+    .select("user_id, role:roles(name)")
+    .in("role.name", ["Administrateur", "Manager QHSE"]);
+
+  const managerUserIds = managers ? managers.map((m: any) => m.user_id).filter(Boolean) : [];
+  let notificationsSent = 0;
+
+  for (const item of upcoming as any[]) {
+    const dueDate = new Date(item.renewal_due_at);
+    const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Target users: Managers + Recipient worker
+    const targetUserIds = Array.from(new Set([...managerUserIds, item.recipient_id].filter(Boolean)));
+
+    if (diffDays <= 30) {
+      const epiName = item.catalog?.name || "EPI";
+      const recipientName = item.recipient?.full_name || "Employé";
+      const thresholdTag = diffDays <= 0 ? "EXPIRE" : diffDays <= 1 ? "J-1" : diffDays <= 7 ? "J-7" : "J-30";
+      const urgencyText = diffDays <= 0 ? "EXPIRÉ" : `à renouveler dans ${diffDays} jour(s)`;
+
+      // If expired, update assignment status and log history
+      if (diffDays <= 0 && item.status !== "a_renouveler") {
+        await supabase
+          .from("epi_assignments")
+          .update({ status: "a_renouveler", updated_at: now.toISOString() })
+          .eq("id", item.id);
+
+        await logEpiHistory({
+          assignmentId: item.id,
+          recipientId: item.recipient_id,
+          action: "epi_expired",
+          comment: `Date de renouvellement dépassée (${new Date(item.renewal_due_at).toLocaleDateString("fr-FR")}). Statut passé à 'a_renouveler'.`,
+        });
+      }
+
+      for (const userId of targetUserIds) {
+        const todayStr = now.toISOString().split("T")[0];
+        const tag = `[EPI:${item.id}:${thresholdTag}]`;
+        const { data: existing } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("user_id", userId)
+          .like("message", `%${tag}%`)
+          .gte("created_at", `${todayStr}T00:00:00Z`)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from("notifications").insert({
+            user_id: userId,
+            title: `⚠️ Échéance EPI : ${epiName}`,
+            message: `L'EPI ${epiName} attribué à ${recipientName} est ${urgencyText}. ${tag}`,
+            link: `/epi`,
+          });
+          notificationsSent++;
+        }
+      }
+    }
+  }
+
+  return { notifiedCount: notificationsSent };
 }
 
 export async function getPublicEpiAssignment(id: string): Promise<Partial<EpiAssignment> | null> {

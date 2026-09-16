@@ -8,14 +8,20 @@ import {
   STANDARD_AFTER_MEASURES,
   DEFAULT_EPI_LIST,
 } from "@/lib/constants/permit-questionnaires";
-import type { WorkPermitType, SafetyMeasure } from "@/lib/types/permits";
-import { CheckCircle2, ShieldAlert, HelpCircle, HardHat, LifeBuoy } from "lucide-react";
+import type {
+  WorkPermitType,
+  SafetyMeasure,
+  WorkPermitTemplateSnapshot,
+  CustomColumnConfig,
+} from "@/lib/types/permits";
+import { CheckCircle2, ShieldAlert, HelpCircle, HardHat, LifeBuoy, FolderPlus, Table } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface DynamicPermitQuestionnaireProps {
   permitType: WorkPermitType;
+  templateSnapshot?: WorkPermitTemplateSnapshot | null;
   answers?: Record<string, any>;
   onChangeAnswers?: (newAnswers: Record<string, any>) => void;
   beforeMeasures?: SafetyMeasure[];
@@ -26,6 +32,8 @@ export interface DynamicPermitQuestionnaireProps {
   onChangeAfterMeasures?: (measures: SafetyMeasure[]) => void;
   selectedEpi?: string[];
   onChangeEpi?: (epiList: string[]) => void;
+  customFieldsData?: Record<string, any>;
+  onChangeCustomFieldsData?: (data: Record<string, any>) => void;
   // Event callback aliases for forms
   onQuestionnaireChange?: (answers: Record<string, any>) => void;
   onBeforeMeasuresChange?: (measures: SafetyMeasure[]) => void;
@@ -33,12 +41,14 @@ export interface DynamicPermitQuestionnaireProps {
   onAfterMeasuresChange?: (measures: SafetyMeasure[]) => void;
   onEpiChange?: (epi: Record<string, boolean>) => void;
   onEmergencyPlanChange?: (plan: string) => void;
+  onCustomFieldsDataChange?: (data: Record<string, any>) => void;
   onBlockingStateChange?: (hasBlocking: boolean) => void;
   onCreateCapa?: (title: string, description: string) => void;
 }
 
 export function DynamicPermitQuestionnaire({
   permitType,
+  templateSnapshot,
   answers: propAnswers,
   onChangeAnswers,
   beforeMeasures: propBefore,
@@ -49,23 +59,33 @@ export function DynamicPermitQuestionnaire({
   onChangeAfterMeasures,
   selectedEpi: propEpi,
   onChangeEpi,
+  customFieldsData: propCustomFields,
+  onChangeCustomFieldsData,
   onQuestionnaireChange,
   onBeforeMeasuresChange,
   onDuringMeasuresChange,
   onAfterMeasuresChange,
   onEpiChange,
   onEmergencyPlanChange,
+  onCustomFieldsDataChange,
   onBlockingStateChange,
   onCreateCapa,
 }: DynamicPermitQuestionnaireProps) {
-  const [activeTab, setActiveTab] = useState<"questionnaire" | "phases" | "epi" | "emergency">("questionnaire");
+  const [activeTab, setActiveTab] = useState<"questionnaire" | "custom_sections" | "phases" | "epi" | "emergency">("questionnaire");
+
+  const defaultBefore = templateSnapshot?.beforeMeasures || STANDARD_BEFORE_MEASURES;
+  const defaultDuring = templateSnapshot?.duringMeasures || STANDARD_DURING_MEASURES;
+  const defaultAfter = templateSnapshot?.afterMeasures || STANDARD_AFTER_MEASURES;
+  const availableEpiList = templateSnapshot?.epiList || DEFAULT_EPI_LIST;
+  const customSections = templateSnapshot?.customSections || [];
 
   // Internal Fallback States
   const [internalAnswers, setInternalAnswers] = useState<Record<string, any>>({});
-  const [internalBefore, setInternalBefore] = useState<SafetyMeasure[]>(STANDARD_BEFORE_MEASURES);
-  const [internalDuring, setInternalDuring] = useState<SafetyMeasure[]>(STANDARD_DURING_MEASURES);
-  const [internalAfter, setInternalAfter] = useState<SafetyMeasure[]>(STANDARD_AFTER_MEASURES);
+  const [internalBefore, setInternalBefore] = useState<SafetyMeasure[]>(defaultBefore);
+  const [internalDuring, setInternalDuring] = useState<SafetyMeasure[]>(defaultDuring);
+  const [internalAfter, setInternalAfter] = useState<SafetyMeasure[]>(defaultAfter);
   const [internalEpi, setInternalEpi] = useState<string[]>(["casque", "chaussures", "vetements"]);
+  const [internalCustomFields, setInternalCustomFields] = useState<Record<string, any>>({});
   const [emergencyText, setEmergencyText] = useState("");
 
   const answers = propAnswers ?? internalAnswers;
@@ -73,15 +93,88 @@ export function DynamicPermitQuestionnaire({
   const duringMeasures = propDuring ?? internalDuring;
   const afterMeasures = propAfter ?? internalAfter;
   const selectedEpi = propEpi ?? internalEpi;
+  const customFieldsData = propCustomFields ?? internalCustomFields;
 
-  const questions = PERMIT_QUESTIONNAIRES[permitType] || PERMIT_QUESTIONNAIRES.autre;
+  const questions =
+    templateSnapshot?.questionnaires?.[permitType] ||
+    PERMIT_QUESTIONNAIRES[permitType] ||
+    PERMIT_QUESTIONNAIRES.autre;
 
-  // Calcul des blocages
   const blockingItems = questions.filter((q) => {
     if (!q.blockingValue) return false;
-    const currentVal = answers[q.id];
-    return currentVal && currentVal.toString().toLowerCase() === q.blockingValue.toLowerCase();
+    const v = answers[q.id];
+    return v && v.toString().toLowerCase() === q.blockingValue.toLowerCase();
   });
+
+  // Check blocking items across standard questions and custom fields
+  function isAnyItemBlocking(currentAnswers: Record<string, any>, currentCustom: Record<string, any>): boolean {
+    const stdBlocking = questions.some((q) => {
+      if (!q.blockingValue) return false;
+      const v = currentAnswers[q.id];
+      return v && v.toString().toLowerCase() === q.blockingValue.toLowerCase();
+    });
+
+    if (stdBlocking) return true;
+
+    if (customSections.length > 0) {
+      for (const sec of customSections) {
+        for (const field of sec.fields || []) {
+          const val = currentCustom[field.id];
+
+          if (field.critical && (val === undefined || val === null || val === "")) {
+            return true;
+          }
+
+          if (
+            field.blockingValue &&
+            val !== undefined &&
+            val !== null &&
+            val.toString().toLowerCase() === field.blockingValue.toLowerCase()
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  function handleCustomFieldValueChange(fieldId: string, value: any) {
+    const updated = { ...customFieldsData, [fieldId]: value };
+    if (onChangeCustomFieldsData) onChangeCustomFieldsData(updated);
+    if (onCustomFieldsDataChange) onCustomFieldsDataChange(updated);
+    setInternalCustomFields(updated);
+
+    if (onBlockingStateChange) {
+      onBlockingStateChange(isAnyItemBlocking(answers, updated));
+    }
+  }
+
+  function handleAddTableRow(fieldId: string, columns?: CustomColumnConfig[]) {
+    const existingRows = Array.isArray(customFieldsData[fieldId]) ? customFieldsData[fieldId] : [];
+    const newRow: Record<string, any> = { _id: `row_${Date.now()}` };
+    if (columns) {
+      columns.forEach((c) => {
+        newRow[c.id] = "";
+      });
+    }
+    handleCustomFieldValueChange(fieldId, [...existingRows, newRow]);
+  }
+
+  function handleUpdateTableRow(fieldId: string, rowIndex: number, colId: string, val: any) {
+    const existingRows = Array.isArray(customFieldsData[fieldId]) ? [...customFieldsData[fieldId]] : [];
+    if (existingRows[rowIndex]) {
+      existingRows[rowIndex] = { ...existingRows[rowIndex], [colId]: val };
+      handleCustomFieldValueChange(fieldId, existingRows);
+    }
+  }
+
+  function handleRemoveTableRow(fieldId: string, rowIndex: number) {
+    const existingRows = Array.isArray(customFieldsData[fieldId]) ? [...customFieldsData[fieldId]] : [];
+    existingRows.splice(rowIndex, 1);
+    handleCustomFieldValueChange(fieldId, existingRows);
+  }
 
   function handleAnswerChange(questionId: string, value: any) {
     const updated = { ...answers, [questionId]: value };
@@ -89,13 +182,9 @@ export function DynamicPermitQuestionnaire({
     if (onQuestionnaireChange) onQuestionnaireChange(updated);
     setInternalAnswers(updated);
 
-    // Notify blocking state change
-    const newBlocking = questions.some((q) => {
-      if (!q.blockingValue) return false;
-      const v = updated[q.id];
-      return v && v.toString().toLowerCase() === q.blockingValue.toLowerCase();
-    });
-    if (onBlockingStateChange) onBlockingStateChange(newBlocking);
+    if (onBlockingStateChange) {
+      onBlockingStateChange(isAnyItemBlocking(updated, customFieldsData));
+    }
   }
 
   function toggleEpi(epiId: string) {
@@ -193,6 +282,20 @@ export function DynamicPermitQuestionnaire({
           <HelpCircle className="h-3.5 w-3.5" />
           Questionnaire Spécifique ({questions.length})
         </button>
+
+        {customSections.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("custom_sections")}
+            className={`px-4 py-2.5 border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === "custom_sections" ? "border-primary text-primary font-bold" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+            Sections Sur-Mesure ({customSections.length})
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => setActiveTab("phases")}
@@ -351,6 +454,204 @@ export function DynamicPermitQuestionnaire({
         </div>
       )}
 
+      {/* SECTIONS SUR-MESURE DE L'ENTREPRISE */}
+      {activeTab === "custom_sections" && customSections.length > 0 && (
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Saisissez les informations et tableaux spécifiques requis par le référentiel entreprise.
+          </p>
+          {customSections.map((sec) => (
+            <div key={sec.id} className="rounded-xl border border-border bg-card p-4 space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">{sec.title}</h4>
+                {sec.description && <p className="text-[11px] text-muted-foreground mt-0.5">{sec.description}</p>}
+              </div>
+
+              <div className="space-y-3">
+                {sec.fields.map((field) => {
+                  const val = customFieldsData[field.id];
+                  const isBlocking =
+                    field.blockingValue &&
+                    val !== undefined &&
+                    val !== null &&
+                    val.toString().toLowerCase() === field.blockingValue.toLowerCase();
+
+                  if (field.type === "table") {
+                    const rows = Array.isArray(val) ? val : [];
+                    return (
+                      <div key={field.id} className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                            <Table className="h-4 w-4 text-primary" /> {field.label}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => handleAddTableRow(field.id, field.columns)}
+                          >
+                            + Ajouter une ligne
+                          </Button>
+                        </div>
+
+                        {rows.length > 0 ? (
+                          <div className="overflow-x-auto rounded-md border border-border bg-background">
+                            <table className="w-full text-xs text-left border-collapse">
+                              <thead>
+                                <tr className="bg-muted border-b border-border text-muted-foreground font-semibold">
+                                  {field.columns?.map((col) => (
+                                    <th key={col.id} className="p-2">
+                                      {col.label} {col.unit ? `(${col.unit})` : ""}
+                                    </th>
+                                  ))}
+                                  <th className="p-2 w-10"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {rows.map((row: any, rIdx: number) => (
+                                  <tr key={row._id || rIdx} className="border-b border-border/50 last:border-0">
+                                    {field.columns?.map((col) => (
+                                      <td key={col.id} className="p-1.5">
+                                        {col.type === "yes_no" ? (
+                                          <select
+                                            value={row[col.id] || ""}
+                                            onChange={(e) => handleUpdateTableRow(field.id, rIdx, col.id, e.target.value)}
+                                            className="w-full h-7 rounded border border-input bg-background px-2 text-xs"
+                                          >
+                                            <option value="">--</option>
+                                            <option value="oui">Oui</option>
+                                            <option value="non">Non</option>
+                                          </select>
+                                        ) : col.type === "number" ? (
+                                          <Input
+                                            type="number"
+                                            value={row[col.id] || ""}
+                                            onChange={(e) => handleUpdateTableRow(field.id, rIdx, col.id, e.target.value)}
+                                            className="h-7 text-xs"
+                                          />
+                                        ) : (
+                                          <Input
+                                            type="text"
+                                            value={row[col.id] || ""}
+                                            onChange={(e) => handleUpdateTableRow(field.id, rIdx, col.id, e.target.value)}
+                                            className="h-7 text-xs"
+                                          />
+                                        )}
+                                      </td>
+                                    ))}
+                                    <td className="p-1.5 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveTableRow(field.id, rIdx)}
+                                        className="text-muted-foreground hover:text-destructive text-xs"
+                                      >
+                                        ✕
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">Aucune ligne ajoutée. Cliquez sur "+ Ajouter une ligne".</p>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={field.id}
+                      className={`rounded-lg border p-3 text-xs space-y-1.5 ${
+                        isBlocking
+                          ? "border-red-500 bg-red-50/50 dark:bg-red-950/20"
+                          : val
+                          ? "border-border bg-card"
+                          : "border-border bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-foreground">
+                          {field.label} {field.required && <span className="text-destructive">*</span>}
+                        </span>
+
+                        <div>
+                          {field.type === "yes_no" ? (
+                            <div className="flex rounded-md border border-input p-0.5 bg-background">
+                              <button
+                                type="button"
+                                onClick={() => handleCustomFieldValueChange(field.id, "oui")}
+                                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
+                                  val === "oui" ? "bg-emerald-600 text-white" : "text-muted-foreground hover:bg-muted"
+                                }`}
+                              >
+                                OUI
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCustomFieldValueChange(field.id, "non")}
+                                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
+                                  val === "non" ? "bg-red-600 text-white" : "text-muted-foreground hover:bg-muted"
+                                }`}
+                              >
+                                NON
+                              </button>
+                            </div>
+                          ) : field.type === "select" ? (
+                            <select
+                              value={val || ""}
+                              onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                              className="rounded-md border border-input bg-background px-2.5 py-1 text-xs"
+                            >
+                              <option value="">Sélectionner...</option>
+                              {field.options?.map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          ) : field.type === "number" ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                step="any"
+                                value={val || ""}
+                                onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                                className="h-7 w-28 text-xs font-mono"
+                                placeholder="Valeur"
+                              />
+                              {field.unit && <span className="text-xs text-muted-foreground font-mono">{field.unit}</span>}
+                            </div>
+                          ) : field.type === "textarea" ? (
+                            <Textarea
+                              value={val || ""}
+                              onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                              rows={2}
+                              className="w-full text-xs"
+                              placeholder="Renseignez les détails..."
+                            />
+                          ) : (
+                            <Input
+                              type="text"
+                              value={val || ""}
+                              onChange={(e) => handleCustomFieldValueChange(field.id, e.target.value)}
+                              className="h-7 w-48 text-xs"
+                              placeholder="Saisir valeur"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* MESURES AVANT / PENDANT / APRÈS */}
       {activeTab === "phases" && (
         <div className="space-y-6">
@@ -443,7 +744,7 @@ export function DynamicPermitQuestionnaire({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            {DEFAULT_EPI_LIST.map((epi) => {
+            {availableEpiList.map((epi) => {
               const isSelected = selectedEpi.includes(epi.id);
               return (
                 <div

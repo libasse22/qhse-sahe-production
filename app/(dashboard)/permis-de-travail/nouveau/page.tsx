@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listEquipment } from "@/lib/services/equipment.service";
+import { listWorkPermitTemplates } from "@/lib/services/permit-templates.service";
 import { NewPermitForm } from "@/components/permits/new-permit-form";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { FileCheck, ArrowLeft } from "lucide-react";
 
 export default async function NewWorkPermitPage() {
   const equipmentList = await listEquipment();
+  const templates = await listWorkPermitTemplates();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -29,7 +31,7 @@ export default async function NewWorkPermitPage() {
 
       <Card>
         <CardContent className="p-6">
-          <NewPermitForm equipmentList={equipmentList} />
+          <NewPermitForm equipmentList={equipmentList} availableTemplates={templates} />
         </CardContent>
       </Card>
     </div>

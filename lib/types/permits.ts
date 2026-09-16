@@ -29,6 +29,27 @@ export interface SafetyMeasure {
   checked: boolean;
   critical?: boolean;
   status?: "conforme" | "non_conforme" | "a_verifier";
+  responsibility?: "EE" | "EU" | "CONJOINTE";
+}
+
+export type WorkPermitSignatureRole = "EXECUTOR" | "PREVENTION" | "WORKPLACE_MANAGER" | "AUTHORIZER";
+
+export interface WorkPermitSignature {
+  id: string;
+  companyId: string;
+  workPermitId: string;
+  roleCode: WorkPermitSignatureRole | string;
+  signerId?: string | null;
+  signerName: string;
+  signerRoleLabel?: string | null;
+  status: "pending" | "signed" | "refused";
+  rejectionReason?: string | null;
+  signatureMode: "digital" | "handwritten_upload";
+  signatureStoragePath?: string | null;
+  signedAt?: string | null;
+  signedIp?: string | null;
+  stepOrder: number;
+  createdAt: string;
 }
 
 export interface WorkPermitWorker {
@@ -37,6 +58,10 @@ export interface WorkPermitWorker {
   workerId?: string | null;
   workerName: string;
   roleOrQualification: string;
+  acknowledgementStatus?: "pending" | "acknowledged" | "refused";
+  acknowledgedAt?: string | null;
+  acknowledgementMethod?: "digital" | "paper";
+  rejectionReason?: string | null;
   createdAt?: string;
 }
 
@@ -64,6 +89,105 @@ export interface QuestionnaireQuestion {
   blockingValue?: string; // Value that triggers a blocking alert if matched
 }
 
+export interface CustomColumnConfig {
+  id: string;
+  label: string;
+  type: "text" | "number" | "select" | "yes_no" | "date";
+  options?: string[];
+  unit?: string;
+  required?: boolean;
+}
+
+export interface CustomFieldConfig {
+  id: string;
+  label: string;
+  description?: string;
+  type:
+    | "text"
+    | "textarea"
+    | "number"
+    | "yes_no"
+    | "yes_no_na"
+    | "select"
+    | "checkbox"
+    | "date"
+    | "time"
+    | "person"
+    | "file"
+    | "photo_proof"
+    | "table";
+  order: number;
+  required?: boolean;
+  critical?: boolean;
+  blockingValue?: string;
+  options?: string[];
+  unit?: string;
+  defaultValue?: string;
+  helpText?: string;
+  showOnPrint?: boolean;
+  columns?: CustomColumnConfig[];
+}
+
+export interface CustomSectionConfig {
+  id: string;
+  title: string;
+  description?: string;
+  order: number;
+  active: boolean;
+  showOnPrint: boolean;
+  showOnScreen: boolean;
+  required?: boolean;
+  fields: CustomFieldConfig[];
+}
+
+export interface WorkPermitTemplateSnapshot {
+  templateName: string;
+  versionLabel: string;
+  maxValidityHours: number;
+  enabledPermitTypes: WorkPermitType[];
+  questionnaires: Record<string, QuestionnaireQuestion[]>;
+  beforeMeasures: SafetyMeasure[];
+  duringMeasures: SafetyMeasure[];
+  afterMeasures: SafetyMeasure[];
+  epiList: { id: string; label: string }[];
+  equipmentList?: string[];
+  emergencyPlanConfig?: Record<string, string>;
+  signatureChain?: string[];
+  customSections?: CustomSectionConfig[];
+}
+
+export type WorkPermitTemplateStatus = "brouillon" | "actif" | "archive";
+
+export interface WorkPermitTemplate {
+  id: string;
+  companyId: string;
+  name: string;
+  description: string;
+  code: string;
+  versionMajor: number;
+  versionMinor: number;
+  status: WorkPermitTemplateStatus;
+  isDefault: boolean;
+  createdBy?: string | null;
+  createdByName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  activeVersion?: WorkPermitTemplateVersion | null;
+}
+
+export interface WorkPermitTemplateVersion {
+  id: string;
+  templateId: string;
+  companyId: string;
+  versionMajor: number;
+  versionMinor: number;
+  versionLabel: string;
+  status: "actif" | "archive";
+  configuration: WorkPermitTemplateSnapshot;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
 export interface WorkPermit {
   id: string;
   reference: string;
@@ -72,10 +196,15 @@ export interface WorkPermit {
   description: string;
   location: string;
   contractorCompany?: string | null;
+  contractorContactName?: string | null;
+  contractorContactPhone?: string | null;
   siteId?: string | null;
   siteName?: string | null;
   equipmentId?: string | null;
   equipmentName?: string | null;
+  equipmentIds?: string[] | null;
+  equipmentNames?: string[] | null;
+  decision?: "AUTORISE" | "NON_AUTORISE" | null;
   applicantId: string;
   applicantName?: string | null;
   approverId?: string | null;
@@ -84,6 +213,7 @@ export interface WorkPermit {
   endTime: string;
   safetyMeasures: SafetyMeasure[];
   workers?: WorkPermitWorker[];
+  signatures?: WorkPermitSignature[];
   status: WorkPermitStatus;
   rejectionReason?: string | null;
   suspendedAt?: string | null;
@@ -94,6 +224,10 @@ export interface WorkPermit {
   afterMeasures?: SafetyMeasure[];
   epiRequirements?: string[] | Record<string, boolean>;
   emergencyPlan?: Record<string, string>;
+  templateId?: string | null;
+  templateVersionId?: string | null;
+  templateSnapshot?: WorkPermitTemplateSnapshot | null;
+  customFieldsData?: Record<string, any> | null;
   createdAt: string;
   updatedAt: string;
 }

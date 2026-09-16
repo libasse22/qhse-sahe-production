@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getWorkPermitById, listWorkPermitWorkers, listWorkPermitHistory } from "@/lib/services/permits.service";
+import { getWorkPermitById, listWorkPermitWorkers, listWorkPermitHistory, listWorkPermitSignatures, checkPermitEpiCompliance } from "@/lib/services/permits.service";
 import { getCurrentPermissions } from "@/lib/services/roles.service";
 import { listActiveUsers } from "@/lib/services/users.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { PermitStatusBadge } from "@/components/permits/permit-status-badge";
 import { PermitActionButtons } from "@/components/permits/permit-action-buttons";
 import { PermitWorkersCard } from "@/components/permits/permit-workers-card";
+import { PermitSignaturesCard } from "@/components/permits/permit-signatures-card";
+import { PermitEpiComplianceCard } from "@/components/epi/permit-epi-compliance-card";
 import { PermitHistoryTimeline } from "@/components/permits/permit-history-timeline";
 import { ProofGallery } from "@/components/actions/proof-gallery";
 import { QrCode } from "@/components/equipment/qr-code";
@@ -26,6 +28,7 @@ import {
   PauseCircle,
   Printer,
   QrCode as QrIcon,
+  Layers,
 } from "lucide-react";
 
 export default async function WorkPermitDetailPage({
@@ -43,10 +46,12 @@ export default async function WorkPermitDetailPage({
   const permissions = await getCurrentPermissions();
   const canManage = permissions.has("permits.approve") || permissions.has("actions.manage");
 
-  const [workers, historyEvents, assignableUsers] = await Promise.all([
+  const [workers, signatures, historyEvents, assignableUsers, epiCompliance] = await Promise.all([
     listWorkPermitWorkers(id),
+    listWorkPermitSignatures(id),
     listWorkPermitHistory(id),
     canManage ? listActiveUsers() : Promise.resolve([]),
+    checkPermitEpiCompliance(id),
   ]);
 
   return (
@@ -130,6 +135,9 @@ export default async function WorkPermitDetailPage({
               <div>
                 <span className="text-xs text-muted-foreground block">Catégorie de risque</span>
                 <span className="font-medium">{PERMIT_TYPE_LABELS[permit.permitType]}</span>
+                <span className="text-[11px] text-muted-foreground block mt-0.5">
+                  Référentiel : <span className="font-mono text-primary">{permit.templateSnapshot?.templateName || "QHSE Duo Standard"} ({permit.templateSnapshot?.versionLabel || "v1.0"})</span>
+                </span>
               </div>
 
               <div>
@@ -316,6 +324,104 @@ export default async function WorkPermitDetailPage({
                 </div>
               )}
 
+              {/* SECTIONS & CHAMPS PERSONNALISÉS (RÉFÉRENTIEL SUR-MESURE) */}
+              {permit.templateSnapshot?.customSections && permit.templateSnapshot.customSections.length > 0 && (
+                <div className="border-t border-border pt-4 space-y-4">
+                  <h2 className="font-semibold text-xs text-foreground flex items-center gap-2">
+                    <Layers className="h-4 w-4 text-primary" />
+                    Sections & Formulaires Sur-Mesure du Référentiel
+                  </h2>
+                  {permit.templateSnapshot.customSections
+                    .sort((a, b) => a.order - b.order)
+                    .map((section) => (
+                      <div key={section.id} className="rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+                        <div>
+                          <h3 className="text-xs font-bold text-foreground">{section.title}</h3>
+                          {section.description && (
+                            <p className="text-[11px] text-muted-foreground">{section.description}</p>
+                          )}
+                        </div>
+                        <div className="space-y-3">
+                          {section.fields
+                            .sort((a, b) => a.order - b.order)
+                            .map((field) => {
+                              const val = permit.customFieldsData?.[field.id];
+                              if (field.type === "table" && field.columns) {
+                                const rows = Array.isArray(val) ? val : [];
+                                return (
+                                  <div key={field.id} className="space-y-1.5">
+                                    <span className="text-xs font-semibold text-foreground block">{field.label}</span>
+                                    {rows.length > 0 ? (
+                                      <div className="overflow-x-auto rounded-md border border-border bg-background">
+                                        <table className="w-full text-xs text-left border-collapse">
+                                          <thead>
+                                            <tr className="bg-muted border-b border-border text-muted-foreground font-semibold">
+                                              {field.columns.map((col) => (
+                                                <th key={col.id} className="p-2 font-medium">
+                                                  {col.label} {col.unit ? `(${col.unit})` : ""}
+                                                </th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {rows.map((row: any, rIdx: number) => (
+                                              <tr key={rIdx} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
+                                                {field.columns!.map((col) => (
+                                                  <td key={col.id} className="p-2 font-medium">
+                                                    {row[col.id] ?? "—"}
+                                                  </td>
+                                                ))}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground italic">Aucune donnée renseignée dans ce tableau.</p>
+                                    )}
+                                  </div>
+                                );
+                              }
+
+                              const displayVal =
+                                val === undefined || val === null || val === ""
+                                  ? "—"
+                                  : field.type === "yes_no"
+                                  ? val === "oui" || val === true
+                                    ? "Oui"
+                                    : "Non"
+                                  : String(val);
+
+                              return (
+                                <div key={field.id} className="p-2.5 rounded-md bg-background border border-border text-xs space-y-1">
+                                  <div className="flex items-center justify-between text-muted-foreground font-medium">
+                                    <span>{field.label}</span>
+                                    {field.unit && <span className="text-[10px] text-muted-foreground">({field.unit})</span>}
+                                  </div>
+                                  <div className="font-semibold text-foreground">
+                                    {field.type === "yes_no" ? (
+                                      <span className={
+                                        displayVal === "Oui"
+                                          ? "px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-bold"
+                                          : displayVal === "Non"
+                                          ? "px-2 py-0.5 rounded bg-destructive/10 text-destructive font-bold"
+                                          : "px-2 py-0.5 rounded bg-muted text-foreground"
+                                      }>
+                                        {displayVal}
+                                      </span>
+                                    ) : (
+                                      <span>{displayVal}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+
               {/* CONSIGNES ET PLAN DE SECOURS */}
               {permit.emergencyPlan?.text && (
                 <div className="border-t border-border pt-4 space-y-2">
@@ -330,8 +436,14 @@ export default async function WorkPermitDetailPage({
             </CardContent>
           </Card>
 
-          {/* CARTE ÉQUIPE D'INTERVENANTS */}
+          {/* CARTE CHAÎNE DE SIGNATURES DE VALIDATION */}
+          <PermitSignaturesCard permitId={permit.id} signatures={signatures} canManage={canManage} />
+
+          {/* CARTE ÉQUIPE D'INTERVENANTS & ÉMARGEMENT INDIVIDUEL */}
           <PermitWorkersCard permitId={permit.id} workers={workers} canManage={canManage} />
+
+          {/* CARTE CONFORMITÉ EPI INTERVENANTS */}
+          <PermitEpiComplianceCard compliance={epiCompliance} />
 
           {/* GALERIE PREUVES TERRAIN (AVANT / PENDANT / APRÈS) */}
           <ProofGallery workPermitId={permit.id} />
