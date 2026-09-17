@@ -11,22 +11,28 @@ import {
   ShieldAlert, 
   Siren, 
   User, 
-  Wrench 
+  Wrench,
+  FileCheck2,
+  HardHat,
+  ClipboardCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { CockpitItem } from "@/lib/services/cockpit.service";
+import type { CockpitItem, CockpitItemCategory } from "@/lib/services/cockpit.service";
 
 interface CockpitItemCardProps {
   item: CockpitItem;
 }
 
-const CATEGORY_ICONS = {
+const CATEGORY_ICONS: Record<CockpitItemCategory, any> = {
   incident: Siren,
   action: Clock,
   audit: Calendar,
   risk: ShieldAlert,
   equipment: Wrench,
   document: FileText,
+  permit: FileCheck2,
+  epi: HardHat,
+  inspection: ClipboardCheck,
 };
 
 export function CockpitItemCard({ item }: CockpitItemCardProps) {

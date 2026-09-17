@@ -8,6 +8,9 @@ import { DistributionBar } from "@/components/dashboard/distribution-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CATEGORY_LABELS, SEVERITY_LABELS, STATUS_LABELS } from "@/lib/types/incidents";
 import { ACTION_STATUS_LABELS } from "@/lib/types/actions";
+import { CockpitV3Header } from "@/components/dashboard/cockpit-v3-header";
+import { CockpitKpiGrid } from "@/components/dashboard/cockpit-kpi-grid";
+import { ExecutiveSummaryCard } from "@/components/dashboard/executive-summary-card";
 
 export default async function DashboardPage() {
   const [profile, cockpitData, dashboardStats] = await Promise.all([
@@ -20,21 +23,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* En-tête du Dashboard */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Cockpit QHSE & Moteur CAPA</h1>
-          <p className="text-sm text-muted-foreground">
-            Bienvenue{profile?.fullName ? `, ${profile.fullName}` : ""}. Vue d&apos;ensemble, arbitrage et pilotage d&apos;efficacité.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-lg border border-border">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          Moteur CAPA Actif & Audité
-        </div>
-      </div>
+      {/* 1. En-tête du Cockpit V3 */}
+      <CockpitV3Header
+        userName={profile?.fullName}
+        companyName={(profile as any)?.company?.name}
+        urgentCount={urgentItems.length}
+        aTraiterCount={aTraiterItems.length}
+      />
 
-      {/* Cartes de synthèse de haut niveau */}
+      {/* 2. Cartes de synthèse de haut niveau (CAPA & Incidents) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Incidents déclarés" value={stats.totalIncidents} icon={Siren} />
         <StatCard
@@ -51,13 +48,13 @@ export default async function DashboardPage() {
         />
         <StatCard
           label="Taux d'efficacité CAPA"
-          value={`${dashboardStats.tauxEfficacite}%`}
+          value={cockpitData.capaKpi.tauxEfficaciteLabel}
           icon={ShieldCheck}
           accent="success"
         />
       </div>
 
-      {/* INDICE DE PERFORMANCE CAPA */}
+      {/* 3. INDICE DE PERFORMANCE CAPA */}
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -90,14 +87,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ZONE CENTRALE : CE QUI NÉCESSITE MON ATTENTION */}
+      {/* 4. ZONE CENTRALE : CE QUI NÉCESSITE MON ATTENTION (URGENT / À TRAITER / INFO) */}
       <div className="space-y-6 rounded-xl border border-border bg-card/50 p-6 shadow-sm">
         <div className="space-y-1 border-b border-border pb-3">
           <h2 className="text-xl font-extrabold tracking-tight text-foreground">
             Ce qui nécessite mon attention
           </h2>
           <p className="text-xs text-muted-foreground">
-            Hiérarchisation intelligente des situations, blocages, échéances et contrôles d&apos;efficacité.
+            Hiérarchisation urgente des situations critiques, blocages, permis à risque, EPI et contrôles d&apos;efficacité.
           </p>
         </div>
 
@@ -106,7 +103,7 @@ export default async function DashboardPage() {
           <CockpitSection
             priority="urgent"
             title="URGENT & BLOQUÉ"
-            description="Situations critiques, actions bloquées et dépassements d'échéance nécessitant un arbitrage immédiat."
+            description="Situations critiques, actions bloquées, permis expirant < 2h et dépassements d'échéance nécessitant un arbitrage immédiat."
             items={urgentItems}
           />
 
@@ -114,7 +111,7 @@ export default async function DashboardPage() {
           <CockpitSection
             priority="a_traiter"
             title="À TRAITER & À VÉRIFIER"
-            description="Actions soumises pour vérification d'efficacité, échéances sous 7 jours et audits planifiés."
+            description="Permis en attente de validation, actions à vérifier, contrôles EPI et audits planifiés sous 7 jours."
             items={aTraiterItems}
           />
 
@@ -128,7 +125,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* REPARTITIONS & RAPPORTS DE SYNTHÈSE */}
+      {/* 5. BLOCS KPI MÉTIER COMPACTS (PtW, EPI, CAPA, Audits/Inspections, GED) */}
+      <CockpitKpiGrid data={cockpitData} />
+
+      {/* 6. SYNTHÈSE DIRECTION FACTUELLE */}
+      <ExecutiveSummaryCard data={cockpitData} companyName={(profile as any)?.company?.name} />
+
+      {/* 7. RÉPARTITIONS GLOBALES DES DONNÉES */}
       <div className="space-y-4">
         <h3 className="text-lg font-bold tracking-tight">Répartition globale des données</h3>
         
