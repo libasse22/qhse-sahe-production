@@ -35,6 +35,7 @@ import {
   updateRevisionWorkflowStatus,
 } from "@/lib/services/documents.service";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
+import { DocumentMasteryCard } from "@/components/documents/document-mastery-card";
 import { CreateRevisionModal } from "@/components/documents/create-revision-modal";
 import { SignatureModal } from "@/components/documents/signature-modal";
 import { PaperSignedUploadModal } from "@/components/documents/paper-signed-upload-modal";
@@ -257,6 +258,14 @@ export function DocumentDetail({
           )}
         </div>
       </div>
+
+      {/* Phase L — Maîtrise Documentaire & ISO 7.5 */}
+      <DocumentMasteryCard
+        document={doc}
+        currentRevision={currentRevision}
+        retentionPolicy={details.retentionPolicy}
+        canManage={canManage}
+      />
 
       {/* Tabs Bar */}
       <div className="flex border-b border-border text-xs font-medium">

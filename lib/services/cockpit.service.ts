@@ -79,6 +79,8 @@ export interface CockpitData {
     enRevision: number;
     echeanceRevue: number;
     signaturesEnAttente: number;
+    aVerifierExterne: number;
+    expires: number;
   };
   risksKpi: {
     total: number;
@@ -131,6 +133,7 @@ export async function getCockpitData(): Promise<CockpitData> {
     inspectionsRes,
     documentsRes,
     documentSignaturesRes,
+    unverifiedRevisionsRes,
   ] = await Promise.all([
     supabase
       .from("incidents")
@@ -180,12 +183,17 @@ export async function getCockpitData(): Promise<CockpitData> {
 
     supabase
       .from("documents")
-      .select("id, code_reference, title, status, effective_date, next_review_date"),
+      .select("id, code_reference, title, status, origin_type, effective_date, review_date, expiry_date"),
 
     supabase
       .from("document_signatures")
       .select("id, document_id, signer_name, signed_at, role")
       .is("signed_at", null),
+
+    supabase
+      .from("document_revisions")
+      .select("id, document_id, revision_code, verification_status")
+      .eq("verification_status", "a_verifier"),
   ]);
 
   const incidents = incidentsRes.data ?? [];
@@ -200,6 +208,7 @@ export async function getCockpitData(): Promise<CockpitData> {
   const inspectionRuns = inspectionsRes.data ?? [];
   const documents = documentsRes.data ?? [];
   const pendingDocumentSignatures = documentSignaturesRes.data ?? [];
+  const unverifiedRevisions = unverifiedRevisionsRes.data ?? [];
 
   const urgentItems: CockpitItem[] = [];
   const aTraiterItems: CockpitItem[] = [];
@@ -615,10 +624,12 @@ export async function getCockpitData(): Promise<CockpitData> {
     }
   }
 
-  // --- 8. CLASSIFICATION GED & DEVOIR DE RÉVISION ---
+  // --- 8. CLASSIFICATION GED & DEVOIR DE RÉVISION (Phase L ISO 7.5) ---
   let gedEnRevisionCount = 0;
   let gedEcheanceRevueCount = 0;
+  let gedExpiresCount = 0;
   const gedSignaturesEnAttenteCount = pendingDocumentSignatures.length;
+  const gedAVerifierExterneCount = unverifiedRevisions.length;
 
   for (const doc of documents) {
     if (doc.status === "brouillon" || doc.status === "en_revision") {
@@ -637,12 +648,49 @@ export async function getCockpitData(): Promise<CockpitData> {
       });
     }
 
-    if (doc.next_review_date) {
-      const reviewDate = new Date(doc.next_review_date);
-      if (reviewDate <= in30Days) {
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Contrôle expiration document
+    if (doc.expiry_date && doc.expiry_date < todayStr) {
+      gedExpiresCount++;
+      urgentItems.push({
+        id: `doc-exp-over-${doc.id}`,
+        title: `[GED ${doc.code_reference || ""}] ${doc.title}`,
+        subtitle: "🔴 Document expiré — Action ou renouvellement requis",
+        category: "document",
+        priority: "urgent",
+        badgeText: "Expiré",
+        badgeVariant: "destructive",
+        assignedTo: null,
+        dateLabel: `Expiré le ${formatDate(doc.expiry_date)}`,
+        isOverdue: true,
+        href: `/documents/${doc.id}`,
+      });
+    }
+
+    // Contrôle revue périodique
+    const targetReview = doc.review_date;
+    if (targetReview) {
+      const reviewDate = new Date(targetReview);
+      if (targetReview < todayStr) {
+        gedEcheanceRevueCount++;
+        urgentItems.push({
+          id: `doc-rev-over-${doc.id}`,
+          title: `[GED ${doc.code_reference || ""}] ${doc.title}`,
+          subtitle: "Revue périodique documentaire en retard",
+          category: "document",
+          priority: "urgent",
+          badgeText: "Revue en retard",
+          badgeVariant: "destructive",
+          assignedTo: null,
+          dateLabel: `Prévue le ${formatDate(targetReview)}`,
+          isOverdue: true,
+          href: `/documents/${doc.id}`,
+        });
+      } else if (reviewDate <= in30Days) {
         gedEcheanceRevueCount++;
         aTraiterItems.push({
-          id: `doc-exp-${doc.id}`,
+          id: `doc-rev-soon-${doc.id}`,
           title: `[GED ${doc.code_reference || ""}] ${doc.title}`,
           subtitle: "Document arrivant à échéance de revue périodique",
           category: "document",
@@ -650,11 +698,27 @@ export async function getCockpitData(): Promise<CockpitData> {
           badgeText: "Revue à prévoir",
           badgeVariant: "warning",
           assignedTo: null,
-          dateLabel: `Échéance le ${formatDate(doc.next_review_date)}`,
+          dateLabel: `Échéance le ${formatDate(targetReview)}`,
           href: `/documents/${doc.id}`,
         });
       }
     }
+  }
+
+  // Signalement des vérifications documents externes en attente
+  if (gedAVerifierExterneCount > 0) {
+    aTraiterItems.push({
+      id: `doc-ext-verif-pending`,
+      title: `${gedAVerifierExterneCount} révision(s) de document(s) externe(s) à vérifier`,
+      subtitle: "Vérification requise pour validation d'origine externe (ISO 7.5)",
+      category: "document",
+      priority: "a_traiter",
+      badgeText: "À vérifier",
+      badgeVariant: "warning",
+      assignedTo: null,
+      dateLabel: `Action Qualité requise`,
+      href: `/documents/registre?verification=a_verifier`,
+    });
   }
 
   // Signalement des signatures documentaires en attente
@@ -746,6 +810,8 @@ export async function getCockpitData(): Promise<CockpitData> {
       enRevision: gedEnRevisionCount,
       echeanceRevue: gedEcheanceRevueCount,
       signaturesEnAttente: gedSignaturesEnAttenteCount,
+      aVerifierExterne: gedAVerifierExterneCount,
+      expires: gedExpiresCount,
     },
     risksKpi: {
       total: risks.length,

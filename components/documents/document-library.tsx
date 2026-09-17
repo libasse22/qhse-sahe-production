@@ -101,14 +101,21 @@ export function DocumentLibrary({
           </div>
         </div>
 
-        {canManage && (
-          <div className="flex items-center gap-2">
-            <Button onClick={() => setIsCreateModalOpen(true)} className="gap-1.5 text-xs">
+        <div className="flex items-center gap-2">
+          <Link href="/documents/registre">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <ExternalLink className="h-3.5 w-3.5 text-sky-600" />
+              Registre Documentaire ISO 7.5
+            </Button>
+          </Link>
+
+          {canManage && (
+            <Button onClick={() => setIsCreateModalOpen(true)} size="sm" className="gap-1.5 text-xs">
               <Plus className="h-4 w-4" />
               Nouveau document
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {error && (

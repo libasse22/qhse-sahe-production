@@ -4,7 +4,7 @@ import { useState, useRef, useTransition } from "react";
 import { Upload, X, FileText, Tag, Calendar } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createDocumentUploadTarget, createDocument } from "@/lib/services/documents.service";
-import type { DocumentFolder, DocumentType, DomaineQhse } from "@/lib/types/document";
+import type { DocumentFolder, DocumentType, DomaineQhse, DocumentOrigin } from "@/lib/types/document";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -25,10 +25,17 @@ export function CreateDocumentModal({
   const [title, setTitle] = useState("");
   const [documentType, setDocumentType] = useState<DocumentType>("procedure");
   const [domaineQhse, setDomaineQhse] = useState<DomaineQhse>("securite");
+  const [originType, setOriginType] = useState<DocumentOrigin>("interne");
+  const [externalSource, setExternalSource] = useState("");
+  const [externalReference, setExternalReference] = useState("");
+  const [externalDocumentDate, setExternalDocumentDate] = useState("");
+  const [externalReceivedDate, setExternalReceivedDate] = useState("");
   const [folderId, setFolderId] = useState<string>(defaultFolderId || "");
   const [tagsInput, setTagsInput] = useState("");
   const [effectiveDate, setEffectiveDate] = useState("");
+  const [reviewDate, setReviewDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
+  const [retentionYears] = useState<string>("5");
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +97,15 @@ export function CreateDocumentModal({
           fileSize: file.size,
           tags,
           effectiveDate: effectiveDate || null,
+          reviewDate: reviewDate || null,
           expiryDate: expiryDate || null,
+          originType,
+          externalSource: originType === "externe" ? externalSource.trim() || null : null,
+          externalReference: originType === "externe" ? externalReference.trim() || null : null,
+          externalDocumentDate: originType === "externe" ? externalDocumentDate || null : null,
+          externalReceivedDate: originType === "externe" ? externalReceivedDate || null : null,
+          retentionDurationYears: retentionYears ? parseInt(retentionYears, 10) : null,
+          retentionUnit: "ans",
         });
 
         setIsUploading(false);
@@ -163,11 +178,77 @@ export function CreateDocumentModal({
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="ex: Procédure d'intervention en espace confiné"
+              placeholder="ex: Procédure d'intervention en espace confiné ou Norme ISO 9001:2015"
               className="text-xs"
               required
             />
           </div>
+
+          {/* Origine du Document ISO 7.5 */}
+          <div className="grid grid-cols-2 gap-3 p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-800">
+            <div className="space-y-1">
+              <label className="font-semibold text-foreground text-xs">Origine Documentaire *</label>
+              <select
+                value={originType}
+                onChange={(e) => setOriginType(e.target.value as DocumentOrigin)}
+                className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs focus:ring-1 focus:ring-primary font-medium"
+              >
+                <option value="interne">Document d'origine Interne</option>
+                <option value="externe">Document d'origine Externe (ISO 7.5)</option>
+              </select>
+            </div>
+
+            {originType === "externe" && (
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground text-xs">Organisme / Émetteur *</label>
+                <Input
+                  value={externalSource}
+                  onChange={(e) => setExternalSource(e.target.value)}
+                  placeholder="ex: ISO, AFNOR, Bureau Veritas..."
+                  className="text-xs"
+                  required={originType === "externe"}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Métadonnées Spécifiques Document Externe */}
+          {originType === "externe" && (
+            <div className="p-3 bg-amber-50/70 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-900/50 space-y-3">
+              <div className="text-[11px] font-semibold text-amber-900 dark:text-amber-300">
+                Spécifications Document Externe (Circuit de vérification obligatoire)
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-slate-700 dark:text-slate-300">Réf. Externe</label>
+                  <Input
+                    value={externalReference}
+                    onChange={(e) => setExternalReference(e.target.value)}
+                    placeholder="ex: NF EN 1337"
+                    className="text-xs h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-slate-700 dark:text-slate-300">Date du doc</label>
+                  <Input
+                    type="date"
+                    value={externalDocumentDate}
+                    onChange={(e) => setExternalDocumentDate(e.target.value)}
+                    className="text-xs h-8"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-medium text-slate-700 dark:text-slate-300">Réception</label>
+                  <Input
+                    type="date"
+                    value={externalReceivedDate}
+                    onChange={(e) => setExternalReceivedDate(e.target.value)}
+                    className="text-xs h-8"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Type & Domaine */}
           <div className="grid grid-cols-2 gap-3">
@@ -225,28 +306,39 @@ export function CreateDocumentModal({
             </select>
           </div>
 
-          {/* Dates d'effet et d'expiration */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Dates d'effet, revue et d'expiration */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="space-y-1">
               <label className="flex items-center gap-1 font-medium text-foreground">
-                <Calendar className="h-3 w-3 text-muted-foreground" /> Date de mise en vigueur
+                <Calendar className="h-3 w-3 text-muted-foreground" /> En vigueur
               </label>
               <Input
                 type="date"
                 value={effectiveDate}
                 onChange={(e) => setEffectiveDate(e.target.value)}
-                className="text-xs"
+                className="text-xs h-8"
               />
             </div>
             <div className="space-y-1">
               <label className="flex items-center gap-1 font-medium text-foreground">
-                <Calendar className="h-3 w-3 text-muted-foreground" /> Date d'expiration
+                <Calendar className="h-3 w-3 text-muted-foreground" /> Date revue
+              </label>
+              <Input
+                type="date"
+                value={reviewDate}
+                onChange={(e) => setReviewDate(e.target.value)}
+                className="text-xs h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="flex items-center gap-1 font-medium text-foreground">
+                <Calendar className="h-3 w-3 text-muted-foreground" /> Expiration
               </label>
               <Input
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="text-xs"
+                className="text-xs h-8"
               />
             </div>
           </div>

@@ -22,6 +22,20 @@ export type DocumentType =
 
 export type DomaineQhse = 'securite' | 'environnement' | 'qualite' | 'sante' | 'hygiene' | 'general';
 
+export type DocumentOrigin = 'interne' | 'externe';
+
+export type ExternalVerificationStatus = 'a_verifier' | 'verifie' | 'rejete';
+
+export type RejectionCategory =
+  | 'source_non_fiable'
+  | 'document_expire'
+  | 'reference_invalide'
+  | 'contenu_non_applicable'
+  | 'document_illisible'
+  | 'autre';
+
+export type CalculatedDocumentState = 'normal' | 'revue_proche' | 'revue_depassee' | 'echeance_proche' | 'expire';
+
 export interface QhseDocument {
   id: string;
   companyId?: string | null;
@@ -37,6 +51,13 @@ export interface QhseDocument {
   versionMinor?: number;
   revisionCode?: string;
   status?: DocumentStatus;
+  originType?: DocumentOrigin;
+  externalSource?: string | null;
+  externalReference?: string | null;
+  externalDocumentDate?: string | null;
+  externalReceivedDate?: string | null;
+  retentionDurationYears?: number;
+  retentionUnit?: 'ans' | 'mois' | 'indefini';
   originalFilename?: string | null;
   fileType?: string | null;
   fileSize?: number | null;
@@ -51,6 +72,10 @@ export interface QhseDocument {
   createdAt: string;
   updatedAt?: string;
   url: string | null;
+
+  // Attributs calculés / enrichis
+  calculatedState?: CalculatedDocumentState;
+  activeRevisionVerification?: ExternalVerificationStatus;
 }
 
 export interface DocumentFolder {
@@ -79,6 +104,12 @@ export interface DocumentRevision {
   signedStoragePath?: string | null;
   changeSummary?: string;
   status: DocumentStatus;
+  verificationStatus?: ExternalVerificationStatus;
+  verifiedBy?: string | null;
+  verifiedByName?: string | null;
+  verifiedAt?: string | null;
+  rejectionReason?: string | null;
+  rejectionCategory?: RejectionCategory | null;
   createdBy: string;
   createdAt: string;
   url?: string | null;
@@ -149,6 +180,17 @@ export interface DocumentExternalShare {
   createdAt: string;
 }
 
+export interface DocumentRetentionPolicy {
+  id: string;
+  companyId?: string;
+  documentType: DocumentType | 'default';
+  retentionYears: number;
+  retentionUnit: 'ans' | 'mois' | 'indefini';
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DocumentHistoryEventType =
   | 'created'
   | 'uploaded'
@@ -160,7 +202,13 @@ export type DocumentHistoryEventType =
   | 'shared_external'
   | 'exported'
   | 'archived'
-  | 'restored';
+  | 'restored'
+  | 'external_origin_set'
+  | 'external_document_verified'
+  | 'external_document_rejected'
+  | 'retention_policy_changed'
+  | 'review_date_changed'
+  | 'expiry_date_changed';
 
 export interface DocumentHistoryEvent {
   id: string;
@@ -180,6 +228,8 @@ export interface DocumentFilterOptions {
   status?: DocumentStatus | 'all';
   documentType?: DocumentType | 'all';
   domaineQhse?: DomaineQhse | 'all';
+  originType?: DocumentOrigin | 'all';
+  verificationStatus?: ExternalVerificationStatus | 'all';
 }
 
 export interface DocumentDetails {
@@ -189,4 +239,26 @@ export interface DocumentDetails {
   links: DocumentLink[];
   history: DocumentHistoryEvent[];
   signatures: DocumentSignature[];
+  retentionPolicy?: DocumentRetentionPolicy | null;
 }
+
+export const REJECTION_CATEGORY_LABELS: Record<RejectionCategory, string> = {
+  source_non_fiable: 'Source ou émetteur non fiable',
+  document_expire: 'Document expiré / obsolète',
+  reference_invalide: 'Référence externe non reconnue',
+  contenu_non_applicable: 'Contenu non applicable / non pertinent',
+  document_illisible: 'Document illisible ou altéré',
+  autre: 'Autre motif',
+};
+
+export const VERIFICATION_STATUS_LABELS: Record<ExternalVerificationStatus, string> = {
+  a_verifier: 'À vérifier',
+  verifie: 'Vérifié conforme',
+  rejete: 'Rejeté',
+};
+
+export const VERIFICATION_STATUS_BADGES: Record<ExternalVerificationStatus, 'warning' | 'success' | 'destructive'> = {
+  a_verifier: 'warning',
+  verifie: 'success',
+  rejete: 'destructive',
+};

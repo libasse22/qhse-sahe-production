@@ -16,11 +16,37 @@ import type {
   DocumentStatus,
   DocumentFilterOptions,
   DocumentDetails,
+  DocumentOrigin,
+  ExternalVerificationStatus,
+  RejectionCategory,
+  CalculatedDocumentState,
+  DocumentRetentionPolicy,
 } from "@/lib/types/document";
 
 const BUCKET = "qhse-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 const DOCUMENT_SELECT = "*, author:profiles!documents_uploaded_by_fkey(full_name)";
+
+/** Calcul du statut temporel d'un document (échéance de revue / expiration) */
+export async function calculateDocumentState(
+  reviewDate?: string | null,
+  expiryDate?: string | null
+): Promise<CalculatedDocumentState> {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const in30Days = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  if (expiryDate) {
+    if (expiryDate < todayStr) return "expire";
+    if (expiryDate <= in30Days) return "echeance_proche";
+  }
+
+  if (reviewDate) {
+    if (reviewDate < todayStr) return "revue_depassee";
+    if (reviewDate <= in30Days) return "revue_proche";
+  }
+
+  return "normal";
+}
 
 // ----------------------------------------------------------------------------
 // CODIFICATION AUTOMATIQUE TRANSACTIONNELLE
@@ -77,9 +103,12 @@ export async function listDocuments(filterInput?: DocumentFilterOptions | string
   if (options.domaineQhse && options.domaineQhse !== "all") {
     query = query.eq("domaine_qhse", options.domaineQhse);
   }
+  if (options.originType && options.originType !== "all") {
+    query = query.eq("origin_type", options.originType);
+  }
   if (options.searchQuery && options.searchQuery.trim() !== "") {
     const q = `%${options.searchQuery.trim()}%`;
-    query = query.or(`title.ilike.${q},code_reference.ilike.${q},original_filename.ilike.${q}`);
+    query = query.or(`title.ilike.${q},code_reference.ilike.${q},original_filename.ilike.${q},external_reference.ilike.${q},external_source.ilike.${q}`);
   }
 
   const { data, error } = await query;
@@ -103,6 +132,13 @@ export async function listDocuments(filterInput?: DocumentFilterOptions | string
         version_minor?: number;
         revision_code?: string;
         status?: DocumentStatus;
+        origin_type?: DocumentOrigin;
+        external_source?: string | null;
+        external_reference?: string | null;
+        external_document_date?: string | null;
+        external_received_date?: string | null;
+        retention_duration_years?: number | null;
+        retention_unit?: 'ans' | 'mois' | 'indefini';
         original_filename?: string | null;
         file_type?: string | null;
         file_size?: number | null;
@@ -139,6 +175,13 @@ export async function listDocuments(filterInput?: DocumentFilterOptions | string
         versionMinor: row.version_minor ?? 0,
         revisionCode: row.revision_code || "REV00",
         status: row.status || "en_vigueur",
+        originType: row.origin_type || "interne",
+        externalSource: row.external_source ?? null,
+        externalReference: row.external_reference ?? null,
+        externalDocumentDate: row.external_document_date ?? null,
+        externalReceivedDate: row.external_received_date ?? null,
+        retentionDurationYears: row.retention_duration_years ?? undefined,
+        retentionUnit: row.retention_unit || "ans",
         originalFilename: row.original_filename ?? null,
         fileType: row.file_type ?? null,
         fileSize: row.file_size ?? null,
@@ -186,6 +229,13 @@ export async function createDocument(params: {
   effectiveDate?: string | null;
   reviewDate?: string | null;
   expiryDate?: string | null;
+  originType?: DocumentOrigin;
+  externalSource?: string | null;
+  externalReference?: string | null;
+  externalDocumentDate?: string | null;
+  externalReceivedDate?: string | null;
+  retentionDurationYears?: number | null;
+  retentionUnit?: 'ans' | 'mois' | 'indefini';
 }): Promise<ActionResult & { documentId?: string; codeReference?: string }> {
   const parsed = documentMetaSchema.safeParse({ title: params.title, category: params.category || "Général" });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Titre invalide" };
@@ -200,6 +250,7 @@ export async function createDocument(params: {
 
   const docType = params.documentType || "autre";
   const domain = params.domaineQhse || "securite";
+  const originType = params.originType || "interne";
 
   // Code reference transactionnel
   let codeRef: string | null = null;
@@ -223,6 +274,13 @@ export async function createDocument(params: {
       version_minor: 0,
       revision_code: "REV00",
       status: "en_vigueur",
+      origin_type: originType,
+      external_source: params.externalSource || null,
+      external_reference: params.externalReference || null,
+      external_document_date: params.externalDocumentDate || null,
+      external_received_date: params.externalReceivedDate || null,
+      retention_duration_years: params.retentionDurationYears ?? null,
+      retention_unit: params.retentionUnit || "ans",
       original_filename: params.originalFilename || null,
       file_type: params.fileType || null,
       file_size: params.fileSize || null,
@@ -237,6 +295,7 @@ export async function createDocument(params: {
   if (docError || !docData) return { error: "Impossible de créer l'entrée documentaire." };
 
   const documentId = docData.id;
+  const verificationStatus: ExternalVerificationStatus = originType === "externe" ? "a_verifier" : "verifie";
 
   // 2. Création première révision REV00
   await supabase.from("document_revisions").insert({
@@ -247,6 +306,7 @@ export async function createDocument(params: {
     storage_path: params.storagePath,
     change_summary: "Création initiale (REV00)",
     status: "en_vigueur",
+    verification_status: verificationStatus,
     created_by: user.id,
   });
 
@@ -334,6 +394,13 @@ export async function getDocumentDetails(documentId: string): Promise<DocumentDe
     version_minor?: number;
     revision_code?: string;
     status?: DocumentStatus;
+    origin_type?: DocumentOrigin;
+    external_source?: string | null;
+    external_reference?: string | null;
+    external_document_date?: string | null;
+    external_received_date?: string | null;
+    retention_duration_years?: number | null;
+    retention_unit?: 'ans' | 'mois' | 'indefini';
     original_filename?: string | null;
     file_type?: string | null;
     file_size?: number | null;
@@ -370,6 +437,13 @@ export async function getDocumentDetails(documentId: string): Promise<DocumentDe
     versionMinor: rawDoc.version_minor ?? 0,
     revisionCode: rawDoc.revision_code || "REV00",
     status: rawDoc.status || "en_vigueur",
+    originType: rawDoc.origin_type || "interne",
+    externalSource: rawDoc.external_source ?? null,
+    externalReference: rawDoc.external_reference ?? null,
+    externalDocumentDate: rawDoc.external_document_date ?? null,
+    externalReceivedDate: rawDoc.external_received_date ?? null,
+    retentionDurationYears: rawDoc.retention_duration_years ?? undefined,
+    retentionUnit: rawDoc.retention_unit || "ans",
     originalFilename: rawDoc.original_filename ?? null,
     fileType: rawDoc.file_type ?? null,
     fileSize: rawDoc.file_size ?? null,
@@ -386,7 +460,7 @@ export async function getDocumentDetails(documentId: string): Promise<DocumentDe
     url: signedUrl,
   };
 
-  const [folders, revisions, links, history, signatures] = await Promise.all([
+  const [folders, revisions, links, history, signatures, retentionRes] = await Promise.all([
     rawDoc.folder_id
       ? supabase.from("document_folders").select("*").eq("id", rawDoc.folder_id).single().then((res) => res.data)
       : Promise.resolve(null),
@@ -394,6 +468,13 @@ export async function getDocumentDetails(documentId: string): Promise<DocumentDe
     listDocumentLinks(documentId),
     listDocumentHistory(documentId),
     listDocumentSignatures(documentId),
+    supabase
+      .from("document_retention_policies")
+      .select("*")
+      .or(`document_type.eq.${document.documentType},document_type.eq.default`)
+      .order("document_type", { ascending: false })
+      .limit(1)
+      .then((res) => res.data),
   ]);
 
   let folder: DocumentFolder | null = null;
@@ -413,6 +494,28 @@ export async function getDocumentDetails(documentId: string): Promise<DocumentDe
     };
   }
 
+  let retentionPolicy: DocumentRetentionPolicy | null = null;
+  if (retentionRes && retentionRes.length > 0) {
+    const pol = retentionRes[0];
+    retentionPolicy = {
+      id: pol.id,
+      companyId: pol.company_id,
+      documentType: pol.document_type as DocumentType | "default",
+      retentionYears: pol.retention_years,
+      retentionUnit: pol.retention_unit as "ans" | "mois" | "indefini",
+      description: pol.description ?? undefined,
+      createdAt: pol.created_at,
+      updatedAt: pol.updated_at,
+    };
+  }
+
+  const calculatedState = await calculateDocumentState(document.reviewDate, document.expiryDate);
+  const activeRev = revisions.find((r) => r.status === "en_vigueur") || revisions[0];
+  const activeRevisionVerification = activeRev?.verificationStatus || (document.originType === "externe" ? "a_verifier" : "verifie");
+
+  document.calculatedState = calculatedState;
+  document.activeRevisionVerification = activeRevisionVerification;
+
   return {
     document,
     folder,
@@ -420,6 +523,7 @@ export async function getDocumentDetails(documentId: string): Promise<DocumentDe
     links,
     history,
     signatures,
+    retentionPolicy,
   };
 }
 
@@ -441,7 +545,12 @@ export async function createDocumentRevision(params: {
 
   const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
 
-  // 1. Récupération des révisions existantes pour calculer le code suivant
+  // 1. Récupération du document parent pour connaître son origin_type
+  const { data: parentDoc } = await supabase.from("documents").select("origin_type").eq("id", params.documentId).single();
+  const isExternal = parentDoc?.origin_type === "externe";
+  const verificationStatus: ExternalVerificationStatus = isExternal ? "a_verifier" : "verifie";
+
+  // Récupération des révisions existantes pour calculer le code suivant
   const { data: existingRevisions, error: fetchErr } = await supabase
     .from("document_revisions")
     .select("*")
@@ -481,6 +590,7 @@ export async function createDocumentRevision(params: {
       storage_path: params.storagePath,
       change_summary: params.changeSummary,
       status: "en_revue",
+      verification_status: verificationStatus,
       created_by: user.id,
     })
     .select("id")
@@ -537,7 +647,7 @@ export async function listDocumentRevisions(documentId: string): Promise<Documen
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("document_revisions")
-    .select("*")
+    .select("*, verifier:profiles!document_revisions_verified_by_fkey(full_name)")
     .eq("document_id", documentId)
     .order("created_at", { ascending: false });
 
@@ -557,6 +667,8 @@ export async function listDocumentRevisions(documentId: string): Promise<Documen
         signedUrl = s?.signedUrl ?? null;
       }
 
+      const verifierObj = row.verifier as unknown as { full_name: string } | null;
+
       return {
         id: row.id,
         companyId: row.company_id,
@@ -568,6 +680,12 @@ export async function listDocumentRevisions(documentId: string): Promise<Documen
         signedStoragePath: row.signed_storage_path,
         changeSummary: row.change_summary,
         status: row.status as DocumentStatus,
+        verificationStatus: (row.verification_status as ExternalVerificationStatus) || "verifie",
+        verifiedBy: row.verified_by ?? null,
+        verifiedByName: verifierObj?.full_name || null,
+        verifiedAt: row.verified_at ?? null,
+        rejectionReason: row.rejection_reason ?? null,
+        rejectionCategory: (row.rejection_category as RejectionCategory) ?? null,
         createdBy: row.created_by,
         createdAt: row.created_at,
         url,
@@ -913,6 +1031,215 @@ export async function updateRevisionWorkflowStatus(params: {
 
   revalidatePath("/documents");
   revalidatePath(`/documents/${params.documentId}`);
+  return { error: null };
+}
+
+// ----------------------------------------------------------------------------
+// PHASE L — MAÎTRISE DOCUMENTAIRE ISO 7.5 (VÉRIFICATION, REGISTRE & CONSERVATION)
+// ----------------------------------------------------------------------------
+
+export async function verifyExternalDocument(
+  revisionId: string,
+  comment?: string
+): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Session expirée" };
+
+  const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+
+  const { data: revision, error: fetchErr } = await supabase
+    .from("document_revisions")
+    .select("id, document_id, revision_code")
+    .eq("id", revisionId)
+    .single();
+
+  if (fetchErr || !revision) return { error: "Révision introuvable." };
+
+  const { error: updateErr } = await supabase
+    .from("document_revisions")
+    .update({
+      verification_status: "verifie",
+      verified_by: user.id,
+      verified_at: new Date().toISOString(),
+      rejection_reason: null,
+      rejection_category: null,
+    })
+    .eq("id", revisionId);
+
+  if (updateErr) return { error: `Impossible de vérifier la révision: ${updateErr.message}` };
+
+  await supabase.from("document_history").insert({
+    document_id: revision.document_id,
+    revision_id: revisionId,
+    event_type: "external_document_verified",
+    actor_id: user.id,
+    actor_name: profile?.full_name || "Utilisateur",
+    details: {
+      revision_code: revision.revision_code,
+      comment: comment || null,
+    },
+  });
+
+  revalidatePath("/documents");
+  revalidatePath(`/documents/${revision.document_id}`);
+  revalidatePath("/documents/registre");
+  return { error: null };
+}
+
+export async function rejectExternalDocument(params: {
+  revisionId: string;
+  rejectionCategory: RejectionCategory;
+  rejectionReason: string;
+}): Promise<ActionResult> {
+  if (!params.rejectionReason || params.rejectionReason.trim().length === 0) {
+    return { error: "Le motif du rejet est obligatoire." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Session expirée" };
+
+  const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+
+  const { data: revision, error: fetchErr } = await supabase
+    .from("document_revisions")
+    .select("id, document_id, revision_code")
+    .eq("id", params.revisionId)
+    .single();
+
+  if (fetchErr || !revision) return { error: "Révision introuvable." };
+
+  const { error: updateErr } = await supabase
+    .from("document_revisions")
+    .update({
+      verification_status: "rejete",
+      verified_by: user.id,
+      verified_at: new Date().toISOString(),
+      rejection_category: params.rejectionCategory,
+      rejection_reason: params.rejectionReason.trim(),
+    })
+    .eq("id", params.revisionId);
+
+  if (updateErr) return { error: `Impossible de rejeter la révision: ${updateErr.message}` };
+
+  await supabase.from("document_history").insert({
+    document_id: revision.document_id,
+    revision_id: params.revisionId,
+    event_type: "external_document_rejected",
+    actor_id: user.id,
+    actor_name: profile?.full_name || "Utilisateur",
+    details: {
+      revision_code: revision.revision_code,
+      rejection_category: params.rejectionCategory,
+      rejection_reason: params.rejectionReason.trim(),
+    },
+  });
+
+  revalidatePath("/documents");
+  revalidatePath(`/documents/${revision.document_id}`);
+  revalidatePath("/documents/registre");
+  return { error: null };
+}
+
+export async function listDocumentRegistry(options?: DocumentFilterOptions): Promise<QhseDocument[]> {
+  const docs = await listDocuments(options);
+  if (docs.length === 0) return [];
+
+  const supabase = await createClient();
+  const docIds = docs.map((d) => d.id);
+
+  const { data: revs } = await supabase
+    .from("document_revisions")
+    .select("document_id, revision_code, status, verification_status")
+    .in("document_id", docIds);
+
+  const verificationMap = new Map<string, ExternalVerificationStatus>();
+  if (revs) {
+    for (const r of revs) {
+      if (r.status === "en_vigueur" || !verificationMap.has(r.document_id)) {
+        verificationMap.set(r.document_id, (r.verification_status as ExternalVerificationStatus) || "verifie");
+      }
+    }
+  }
+
+  let filteredDocs = await Promise.all(
+    docs.map(async (doc) => {
+      const calculatedState = await calculateDocumentState(doc.reviewDate, doc.expiryDate);
+      const activeRevisionVerification =
+        verificationMap.get(doc.id) || (doc.originType === "externe" ? "a_verifier" : "verifie");
+
+      return {
+        ...doc,
+        calculatedState,
+        activeRevisionVerification,
+      };
+    })
+  );
+
+  if (options?.verificationStatus && options.verificationStatus !== "all") {
+    filteredDocs = filteredDocs.filter((d) => d.activeRevisionVerification === options.verificationStatus);
+  }
+
+  return filteredDocs;
+}
+
+export async function getCompanyRetentionPolicies(): Promise<DocumentRetentionPolicy[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("document_retention_policies")
+    .select("*")
+    .order("document_type", { ascending: true });
+
+  if (error || !data) return [];
+
+  return data.map((row) => ({
+    id: row.id,
+    companyId: row.company_id,
+    documentType: row.document_type as DocumentType | "default",
+    retentionYears: row.retention_years,
+    retentionUnit: row.retention_unit as "ans" | "mois" | "indefini",
+    description: row.description ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export async function upsertRetentionPolicy(params: {
+  documentType: DocumentType | "default";
+  retentionYears: number;
+  retentionUnit?: "ans" | "mois" | "indefini";
+  description?: string;
+}): Promise<ActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Non authentifié" };
+
+  const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
+  if (!profile?.company_id) return { error: "Profil société introuvable" };
+
+  const { error } = await supabase.from("document_retention_policies").upsert(
+    {
+      company_id: profile.company_id,
+      document_type: params.documentType,
+      retention_years: params.retentionYears,
+      retention_unit: params.retentionUnit || "ans",
+      description: params.description || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "company_id,document_type" }
+  );
+
+  if (error) return { error: `Erreur enregistrement politique de conservation: ${error.message}` };
+
+  revalidatePath("/documents");
+  revalidatePath("/documents/registre");
   return { error: null };
 }
 
