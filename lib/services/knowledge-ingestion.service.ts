@@ -88,7 +88,6 @@ export interface ExtractedSection {
 
 /** Extracteur PDF avec conservation des numéros de pages et sections */
 export async function parsePdfBuffer(buffer: Buffer): Promise<ExtractedSection[]> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const pdfParse = require("pdf-parse");
   const sections: ExtractedSection[] = [];
 

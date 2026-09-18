@@ -394,3 +394,266 @@ export async function getKnowledgeStats(): Promise<{
 
   return stats;
 }
+
+// ----------------------------------------------------------------------------
+// RETRIEVAL & PROVENANCE KNOWLEDGE ENGINE (PHASE R2)
+// ----------------------------------------------------------------------------
+
+export interface KnowledgeSearchResult {
+  knowledge_source_id: string;
+  knowledge_chunk_id: string;
+  title: string;
+  source_type: KnowledgeSourceType;
+  domain: KnowledgeDomain;
+  section?: string | null;
+  heading?: string | null;
+  page?: number | null;
+  sheet_name?: string | null;
+  cell_range?: string | null;
+  content: string;
+  version: string;
+  standard_reference?: string | null;
+  ged_document_id?: string | null;
+  ged_revision_id?: string | null;
+  detected_methods?: string[];
+  priority: KnowledgePriority;
+  score: number;
+}
+
+export interface SearchKnowledgeChunksOptions {
+  query: string;
+  companyId?: string | null;
+  domain?: KnowledgeDomain;
+  sourceType?: KnowledgeSourceType;
+  method?: string;
+  limit?: number;
+}
+
+export interface KnowledgeCitation {
+  knowledgeSourceId: string;
+  chunkId: string;
+  title: string;
+  sourceType: KnowledgeSourceType;
+  domain: KnowledgeDomain;
+  section?: string | null;
+  heading?: string | null;
+  page?: number | null;
+  sheetName?: string | null;
+  cellRange?: string | null;
+  version?: string;
+  gedDocumentId?: string | null;
+  gedRevisionId?: string | null;
+  href?: string;
+  badgeText: string;
+  formattedCitation: string;
+}
+
+/**
+ * Recherche textuelle et déterministe dans les Chunks de la Base de Connaissances.
+ * Multi-tenant et RLS sécurisé (company_id IS NULL OR company_id = tenant).
+ * Ranking: 1. Titre/Heading, 2. Méthode/Domaine, 3. Section/Feuille, 4. Contenu.
+ */
+export async function searchKnowledgeChunks(
+  options: SearchKnowledgeChunksOptions
+): Promise<KnowledgeSearchResult[]> {
+  const supabase = await createClient();
+  const limit = options.limit || 8;
+  const rawQuery = options.query.trim();
+
+  // Mots-clés pertinents (>= 2 car)
+  const keywords = rawQuery
+    .toLowerCase()
+    .replace(/[^\w\sàâäéèêëîïôöùûüç]/gi, " ")
+    .split(/\s+/)
+    .filter((k) => k.length >= 2);
+
+  // Requête vers les Chunks des sources actives
+  let query = supabase
+    .from("knowledge_chunks")
+    .select(`
+      id,
+      knowledge_source_id,
+      chunk_index,
+      content,
+      title,
+      section,
+      page,
+      sheet_name,
+      cell_range,
+      heading,
+      content_type,
+      domain,
+      detected_methods,
+      created_at,
+      source:knowledge_sources!inner(
+        id,
+        company_id,
+        title,
+        source_type,
+        domain,
+        status,
+        priority,
+        version,
+        ged_document_id,
+        ged_revision_id,
+        standard_reference
+      )
+    `)
+    .eq("source.status", "active");
+
+  if (options.domain && options.domain !== "other") {
+    query = query.eq("domain", options.domain);
+  }
+
+  if (options.sourceType) {
+    query = query.eq("source.source_type", options.sourceType);
+  }
+
+  const { data: chunks, error } = await query;
+
+  if (error || !chunks || chunks.length === 0) {
+    return [];
+  }
+
+  // Scoring et classement
+  const scoredResults: KnowledgeSearchResult[] = [];
+
+  for (const item of chunks) {
+    const src = item.source as any;
+    if (!src) continue;
+
+    let score = 0;
+    const chunkTitle = (item.title || src.title || "").toLowerCase();
+    const sectionStr = (item.section || "").toLowerCase();
+    const headingStr = (item.heading || "").toLowerCase();
+    const sheetStr = (item.sheet_name || "").toLowerCase();
+    const contentStr = (item.content || "").toLowerCase();
+    const methods = (item.detected_methods || []) as string[];
+
+    // 1. Filtrage / Boost si méthode spécifique recherchée (e.g. AMDEC, PESTEL)
+    if (options.method) {
+      const targetMethod = options.method.toLowerCase();
+      if (methods.some((m) => m.toLowerCase().includes(targetMethod))) {
+        score += 60;
+      }
+    }
+
+    // 2. Score de mots-clés
+    for (const kw of keywords) {
+      if (chunkTitle.includes(kw)) score += 25;
+      if (headingStr.includes(kw)) score += 20;
+      if (sectionStr.includes(kw)) score += 15;
+      if (sheetStr.includes(kw)) score += 15;
+      if (contentStr.includes(kw)) score += 8;
+      if (methods.some((m) => m.toLowerCase().includes(kw))) score += 30;
+    }
+
+    // 3. Bonus priorités (1 = Référence principale)
+    if (src.priority === "critical" || src.priority === 1) score += 15;
+    if (src.priority === "high" || src.priority === 2) score += 10;
+
+    // Seuls les résultats avec score significatif sont retenus
+    if (score > 0 || keywords.length === 0) {
+      scoredResults.push({
+        knowledge_source_id: src.id,
+        knowledge_chunk_id: item.id,
+        title: item.title || src.title,
+        source_type: src.source_type,
+        domain: (item.domain || src.domain || "other") as KnowledgeDomain,
+        section: item.section || null,
+        heading: item.heading || null,
+        page: item.page || null,
+        sheet_name: item.sheet_name || null,
+        cell_range: item.cell_range || null,
+        content: item.content,
+        version: src.version || "1.0",
+        standard_reference: src.standard_reference || null,
+        ged_document_id: src.ged_document_id || null,
+        ged_revision_id: src.ged_revision_id || null,
+        detected_methods: methods,
+        priority: src.priority,
+        score,
+      });
+    }
+  }
+
+  // Tri décroissant par score
+  scoredResults.sort((a, b) => b.score - a.score);
+
+  // Dédoublonnage (max 2 chunks par source)
+  const sourceCountMap: Record<string, number> = {};
+  const deduplicated: KnowledgeSearchResult[] = [];
+
+  for (const res of scoredResults) {
+    const count = sourceCountMap[res.knowledge_source_id] || 0;
+    if (count < 2) {
+      sourceCountMap[res.knowledge_source_id] = count + 1;
+      deduplicated.push(res);
+    }
+    if (deduplicated.length >= limit) break;
+  }
+
+  return deduplicated;
+}
+
+/**
+ * Construit la citation exacte et la provenance sans hallucination.
+ */
+export async function buildKnowledgeCitation(item: KnowledgeSearchResult): Promise<KnowledgeCitation> {
+  let citationStr = "";
+  let badgeText = "";
+  let href = "/parametres/knowledge";
+
+  if (item.ged_document_id) {
+    href = `/documents/${item.ged_document_id}`;
+  }
+
+  const st = item.source_type;
+
+  if (st === "outil_excel" || st === "tool_excel") {
+    citationStr = `Outil Excel : ${item.title}`;
+    if (item.sheet_name) citationStr += ` — Feuille : ${item.sheet_name}`;
+    if (item.cell_range) citationStr += ` (Plage : ${item.cell_range})`;
+    badgeText = item.sheet_name ? `Excel · ${item.sheet_name}` : "Excel";
+  } else if (st === "cours" || st === "course" || st === "support_formation") {
+    citationStr = `Cours QHSE : ${item.title}`;
+    if (item.heading) citationStr += ` — ${item.heading}`;
+    else if (item.section) citationStr += ` — ${item.section}`;
+    if (item.page) citationStr += ` (Page ${item.page})`;
+    badgeText = item.page ? `Cours · Page ${item.page}` : "Cours QHSE";
+  } else if (st === "ged_doc" || st === "internal_document") {
+    citationStr = `Document GED : ${item.title}`;
+    if (item.version) citationStr += ` — ${item.version}`;
+    if (item.section) citationStr += ` (${item.section})`;
+    badgeText = item.version ? `GED · ${item.version}` : "GED Interne";
+  } else if (st === "norme_referentiel" || st === "standard_reference" || st === "reglementation" || st === "regulation") {
+    citationStr = `Norme / Référentiel : ${item.title}`;
+    if (item.standard_reference) citationStr += ` [Réf: ${item.standard_reference}]`;
+    if (item.section) citationStr += ` — ${item.section}`;
+    badgeText = item.standard_reference || "Norme ISO";
+  } else {
+    citationStr = `Source Connaissances : ${item.title}`;
+    if (item.section) citationStr += ` — ${item.section}`;
+    badgeText = "Connaissances";
+  }
+
+  return {
+    knowledgeSourceId: item.knowledge_source_id,
+    chunkId: item.knowledge_chunk_id,
+    title: item.title,
+    sourceType: item.source_type,
+    domain: item.domain,
+    section: item.section,
+    heading: item.heading,
+    page: item.page,
+    sheetName: item.sheet_name,
+    cellRange: item.cell_range,
+    version: item.version,
+    gedDocumentId: item.ged_document_id,
+    gedRevisionId: item.ged_revision_id,
+    href,
+    badgeText,
+    formattedCitation: citationStr,
+  };
+}
+

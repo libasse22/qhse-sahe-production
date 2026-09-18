@@ -5,6 +5,11 @@ import type { CopilotResponse, CopilotSource, CopilotResponseType } from "@/lib/
 import { getCockpitData } from "@/lib/services/cockpit.service";
 import { listMeetings, prepareMeetingSuggestions } from "@/lib/services/meetings.service";
 import { listDocuments } from "@/lib/services/documents.service";
+import {
+  searchKnowledgeChunks,
+  buildKnowledgeCitation,
+  type KnowledgeSearchResult,
+} from "@/lib/services/knowledge.service";
 
 // ----------------------------------------------------------------------------
 // 1. OUTILS INTERNES DU COPILOTE (RLS & TENANT RESTRICTED)
@@ -167,6 +172,37 @@ export async function searchAuditNonConformities(): Promise<CopilotSource[]> {
   });
 }
 
+/**
+ * Recherche dans la Base de Connaissances QHSE (Outil Server-Side R2)
+ */
+export async function searchKnowledgeBase(
+  query: string,
+  filters?: { method?: string }
+): Promise<{ sources: CopilotSource[]; chunks: KnowledgeSearchResult[] }> {
+  const results = await searchKnowledgeChunks({
+    query,
+    method: filters?.method,
+    limit: 6,
+  });
+
+  const sources: CopilotSource[] = [];
+
+  for (const item of results) {
+    const cit = await buildKnowledgeCitation(item);
+    sources.push({
+      id: item.knowledge_chunk_id,
+      module: "knowledge_base",
+      title: cit.formattedCitation,
+      reference: item.version ? `v${item.version}` : undefined,
+      href: cit.href || "/parametres/knowledge",
+      badgeText: cit.badgeText,
+      badgeVariant: item.source_type === "outil_excel" || item.source_type === "tool_excel" ? "secondary" : "outline",
+    });
+  }
+
+  return { sources, chunks: results };
+}
+
 // ----------------------------------------------------------------------------
 // 2. MOTEUR SERVEUR ASK QHSE & PROVENANCE STRICTE
 // ----------------------------------------------------------------------------
@@ -187,10 +223,44 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
   let responseType: CopilotResponseType = "fact";
   let markdownContent = "";
 
+  // Détection des méthodes métiers QHSE
+  const knownMethods = [
+    "amdec",
+    "pestel",
+    "swot",
+    "ishikawa",
+    "5 pourquoi",
+    "qqoqccp",
+    "raci",
+    "kpi",
+    "kri",
+    "hazop",
+    "5s",
+    "pdca",
+  ];
+  const detectedMethod = knownMethods.find((m) => queryLower.includes(m));
+
+  // Détection si l'intention est centrée sur les connaissances / méthodes / normes
+  const isKnowledgeIntent =
+    Boolean(detectedMethod) ||
+    queryLower.includes("cours") ||
+    queryLower.includes("formation") ||
+    queryLower.includes("norme") ||
+    queryLower.includes("iso") ||
+    queryLower.includes("méthode") ||
+    queryLower.includes("methode") ||
+    queryLower.includes("référentiel") ||
+    queryLower.includes("referentiel") ||
+    queryLower.includes("matrice") ||
+    queryLower.includes("connaissance") ||
+    queryLower.includes("comment faire") ||
+    queryLower.includes("comment réaliser") ||
+    queryLower.includes("que dit");
+
   // 1. Détection d'Intention & Agrégation Déterministe Données Réelles
   if (queryLower.includes("sujet") || queryLower.includes("ordre du jour") || queryLower.includes("prochaine réunion")) {
     const suggestions = await prepareMeetingSuggestions();
-    markdownContent = `### 📋 Proposition d'Ordre du Jour pour votre prochaine Réunion QHSE\n\nSur la base des données réelles de l'entreprise, voici les sujets critiques recommandés :\n\n`;
+    markdownContent = `### 📋 Données Entreprise : Proposition d'Ordre du Jour\n\nSur la base des données réelles de l'entreprise, voici les sujets critiques recommandés :\n\n`;
 
     if (suggestions.length === 0) {
       markdownContent += `*Aucun sujet critique à traiter immédiatement. Tous les indicateurs sont au vert.*\n`;
@@ -214,7 +284,7 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
     const decisions = await searchMeetingDecisions();
     sources.push(...decisions);
 
-    markdownContent = `### 📌 Suivi des Décisions de Réunion\n\nVoici les **${decisions.length} décision(s) encore ouvertes** issues des dernières réunions QHSE :\n\n`;
+    markdownContent = `### 📌 Données Entreprise : Suivi des Décisions de Réunion\n\nVoici les **${decisions.length} décision(s) encore ouvertes** issues des dernières réunions QHSE :\n\n`;
     if (decisions.length === 0) {
       markdownContent += `*Aucune décision ouverte. Toutes les décisions antérieures ont été actées et clôturées.*\n`;
     } else {
@@ -222,11 +292,11 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
         markdownContent += `- **${d.title}** (Statut : *${d.badgeText}*)\n`;
       }
     }
-  } else if (queryLower.includes("audit") || queryLower.includes("non-conform") || queryLower.includes("preuve")) {
+  } else if (queryLower.includes("audit") && (queryLower.includes("non-conform") || queryLower.includes("preuve") || queryLower.includes("écart"))) {
     const nonConformities = await searchAuditNonConformities();
     sources.push(...nonConformities);
 
-    markdownContent = `### 🔍 Points d'Audit Non Conformes & Preuves Manquantes\n\nIl y a **${nonConformities.length} non-conformité(s) d'audit** répertoriée(s) :\n\n`;
+    markdownContent = `### 🔍 Données Entreprise : Points d'Audit Non Conformes & Preuves Manquantes\n\nIl y a **${nonConformities.length} non-conformité(s) d'audit** répertoriée(s) :\n\n`;
     if (nonConformities.length === 0) {
       markdownContent += `*Aucune non-conformité d'audit en attente de preuve. Les rapports d'audit sont conformes.*\n`;
     } else {
@@ -234,13 +304,13 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
         markdownContent += `- **${nc.title}** (${nc.reference})\n`;
       }
     }
-  } else if (queryLower.includes("capa") || queryLower.includes("retard") || queryLower.includes("bloqu")) {
+  } else if (queryLower.includes("capa") || queryLower.includes("retard") || queryLower.includes("action bloqu")) {
     const capas = await searchCAPA();
     sources.push(...capas);
 
     const blocked = capas.filter((c) => c.badgeText === "Bloquée");
 
-    markdownContent = `### 🔴 État des Actions Correctives (CAPA)\n\nIl y a actuellement **${capas.length} action(s) CAPA** nécessitant une attention :\n\n`;
+    markdownContent = `### 🔴 Données Entreprise : État des Actions Correctives (CAPA)\n\nIl y a actuellement **${capas.length} action(s) CAPA** nécessitant une attention :\n\n`;
     for (const c of capas) {
       markdownContent += `- **${c.title}** (Statut : *${c.badgeText}*)\n`;
     }
@@ -248,28 +318,52 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
     if (blocked.length > 0) {
       markdownContent += `\n⚠️ **${blocked.length} action(s) bloquée(s)** nécessitant un arbitrage en réunion de direction.`;
     }
-  } else if (queryLower.includes("incident") || queryLower.includes("critique")) {
+  } else if (queryLower.includes("incident") && (queryLower.includes("critique") || queryLower.includes("déclaré") || queryLower.includes("récent"))) {
     const incidents = await searchIncidents();
     sources.push(...incidents);
 
-    markdownContent = `### ⚠️ Analyse des Incidents Déclarés\n\n**${incidents.length} incident(s) récent(s)** identifié(s) dans le système :\n\n`;
+    markdownContent = `### ⚠️ Données Entreprise : Analyse des Incidents Déclarés\n\n**${incidents.length} incident(s) récent(s)** identifié(s) dans le système :\n\n`;
     for (const inc of incidents) {
       markdownContent += `- **${inc.title}** (${inc.badgeText})\n`;
     }
-  } else if (queryLower.includes("document") || queryLower.includes("vérifier") || queryLower.includes("ged")) {
-    const docs = await searchDocuments();
-    sources.push(...docs);
+  } else if (isKnowledgeIntent) {
+    // Intention Connaissances / Méthodes / Normes
+    const kbRes = await searchKnowledgeBase(userQuery, { method: detectedMethod });
 
-    markdownContent = `### 📁 Documents & Maîtrise Documentaire (ISO 7.5)\n\nDocuments enregistrés dans la GED entreprise :\n\n`;
-    for (const d of docs) {
-      markdownContent += `- **${d.title}** (Origine : *${d.badgeText}*)\n`;
+    if (kbRes.chunks.length > 0) {
+      sources.push(...kbRes.sources);
+      markdownContent = `### 📚 Base de Connaissances QHSE (Connaissances Importées)\n\nVoici les éléments extraits et vérifiés dans votre base de connaissances :\n\n`;
+
+      for (let i = 0; i < kbRes.chunks.length; i++) {
+        const chunk = kbRes.chunks[i];
+        const cit = await buildKnowledgeCitation(chunk);
+        markdownContent += `#### ${i + 1}. ${cit.formattedCitation}\n`;
+        if (chunk.detected_methods && chunk.detected_methods.length > 0) {
+          markdownContent += `*Méthode(s) : ${chunk.detected_methods.join(", ")}*\n`;
+        }
+        markdownContent += `\`\`\`text\n${chunk.content}\n\`\`\`\n\n`;
+      }
+    } else {
+      responseType = "missing_info";
+      markdownContent = `### 📚 Base de Connaissances QHSE\n\n⚠️ **Information non trouvée dans la Base de Connaissances**\n\nAucune norme, cours, méthode ou matrice Excel correspondant à **"${userQuery}"** n'a été trouvé dans vos connaissances actuellement importées.\n\n> *Vous pouvez ajouter des ressources (cours, normes ISO, matrices AMDEC/Excel) dans le socle d'ingestion sous **Paramètres > Base de Connaissances** (/parametres/knowledge).*`;
     }
   } else {
+    // Recherche globale hybride (Synthèse Opérationnelle + Connaissances si disponibles)
+    const kbRes = await searchKnowledgeBase(userQuery);
     const cockpit = await getCockpitData();
     const capas = await searchCAPA();
     sources.push(...capas.slice(0, 3));
 
-    markdownContent = `### 🛡️ Synthèse Opérationnelle QHSE\n\n- **Incidents enregistrés :** ${cockpit.stats.totalIncidents}\n- **Incidents en cours :** ${cockpit.stats.incidentsEnCours}\n- **Permis de Travail actifs :** ${cockpit.permitsKpi.actifs}\n- **Documents GED en révision :** ${cockpit.gedKpi.enRevision}\n\n*Posez une question spécifique pour analyser les réunions, les permis, les CAPA ou la GED.*`;
+    markdownContent = `### 🛡️ Données Entreprise : Synthèse Opérationnelle QHSE\n\n- **Incidents enregistrés :** ${cockpit.stats.totalIncidents}\n- **Incidents en cours :** ${cockpit.stats.incidentsEnCours}\n- **Permis de Travail actifs :** ${cockpit.permitsKpi.actifs}\n- **Documents GED en révision :** ${cockpit.gedKpi.enRevision}\n`;
+
+    if (kbRes.chunks.length > 0) {
+      sources.push(...kbRes.sources);
+      markdownContent += `\n### 📚 Connaissances QHSE Associées\n\n`;
+      for (const chunk of kbRes.chunks) {
+        const cit = await buildKnowledgeCitation(chunk);
+        markdownContent += `- **${cit.formattedCitation}**\n`;
+      }
+    }
   }
 
   // Traçabilité Audit Log Append-Only
@@ -281,7 +375,7 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
         user_id: user.id,
         user_name: profile.full_name || "Utilisateur",
         query_text: userQuery,
-        operation_type: "ask_qhse",
+        operation_type: "ask_qhse_r2",
         sources_used: sources,
       });
     }
@@ -293,9 +387,10 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
     markdownContent,
     sources,
     suggestedActions: [
+      { label: "Base de Connaissances", actionType: "open_href", targetHref: "/parametres/knowledge" },
       { label: "Préparer une Réunion", actionType: "add_to_agenda", targetHref: "/reunions" },
       { label: "Voir les CAPA", actionType: "open_href", targetHref: "/actions" },
-      { label: "Voir le Registre GED", actionType: "open_href", targetHref: "/documents/registre" },
+      { label: "Voir la GED", actionType: "open_href", targetHref: "/documents" },
     ],
     timestamp: new Date().toISOString(),
     isConfigured,
