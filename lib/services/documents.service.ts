@@ -236,6 +236,9 @@ export async function createDocument(params: {
   externalReceivedDate?: string | null;
   retentionDurationYears?: number | null;
   retentionUnit?: 'ans' | 'mois' | 'indefini';
+  sourceModule?: string | null;
+  sourceEntityId?: string | null;
+  isGenerated?: boolean;
 }): Promise<ActionResult & { documentId?: string; codeReference?: string }> {
   const parsed = documentMetaSchema.safeParse({ title: params.title, category: params.category || "Général" });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Titre invalide" };
@@ -288,6 +291,9 @@ export async function createDocument(params: {
       effective_date: params.effectiveDate || null,
       review_date: params.reviewDate || null,
       expiry_date: params.expiryDate || null,
+      source_module: params.sourceModule || null,
+      source_entity_id: params.sourceEntityId || null,
+      is_generated: params.isGenerated ?? false,
     })
     .select("id")
     .single();

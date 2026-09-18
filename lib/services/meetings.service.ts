@@ -17,7 +17,7 @@ import type {
   AttendanceStatus,
   AgendaSourceType,
 } from "@/lib/types/meeting";
-import { createDocument } from "@/lib/services/documents.service";
+import { createDocument, createDocumentRevision } from "@/lib/services/documents.service";
 
 // ----------------------------------------------------------------------------
 // 1. GENERATION TRANSACTIONNELLE DU REFERENCE REUNION (REU-2026-001)
@@ -694,11 +694,13 @@ export async function publishPVToGED(meetingId: string, customNotes?: string): P
     await supabase.from("meetings").update({ notes: customNotes }).eq("id", meetingId);
   }
 
+  const { data: meetingRow } = await supabase.from("meetings").select("document_id").eq("id", meetingId).single();
+
   const { htmlContent, title } = await generateDraftPV(meetingId);
   const fileName = `PV-${meetingId.substring(0, 8)}.html`;
   const storagePath = `pv/${Date.now()}-${fileName}`;
 
-  // Deposer le contenu HTML dans le storage Supabase privatise
+  // Déposer le contenu HTML dans le storage Supabase privatise
   const blob = new Blob([htmlContent], { type: "text/html" });
   const { error: uploadErr } = await supabase.storage.from("qhse-documents").upload(storagePath, blob, {
     contentType: "text/html",
@@ -707,26 +709,43 @@ export async function publishPVToGED(meetingId: string, customNotes?: string): P
 
   if (uploadErr) return { error: `Échec du dépôt du PV dans la GED: ${uploadErr.message}` };
 
-  // Création entrée GED Master Document
-  const createDocRes = await createDocument({
-    title,
-    category: "rapport",
-    documentType: "rapport",
-    domaineQhse: "general",
-    storagePath,
-    originalFilename: fileName,
-    fileType: "text/html",
-    fileSize: htmlContent.length,
-    originType: "interne",
-  });
+  let docId: string;
 
-  if (createDocRes.error || !createDocRes.documentId) {
-    return { error: createDocRes.error || "Impossible de rattacher le PV dans la GED." };
+  if (meetingRow?.document_id) {
+    // Si un document maître existe déjà pour cette réunion, créer une nouvelle révision (REV01, REV02...)
+    const revRes = await createDocumentRevision({
+      documentId: meetingRow.document_id,
+      storagePath,
+      changeSummary: "Révision et mise à jour du Procès-Verbal",
+      isMajorVersion: false,
+    });
+
+    if (revRes.error) return { error: revRes.error };
+    docId = meetingRow.document_id;
+  } else {
+    // Première publication : Création de l'entrée GED Master Document initiale
+    const createDocRes = await createDocument({
+      title,
+      category: "rapport",
+      documentType: "rapport",
+      domaineQhse: "general",
+      storagePath,
+      originalFilename: fileName,
+      fileType: "text/html",
+      fileSize: htmlContent.length,
+      originType: "interne",
+      sourceModule: "meeting",
+      sourceEntityId: meetingId,
+      isGenerated: true,
+    });
+
+    if (createDocRes.error || !createDocRes.documentId) {
+      return { error: createDocRes.error || "Impossible de rattacher le PV dans la GED." };
+    }
+    docId = createDocRes.documentId;
   }
 
-  const docId = createDocRes.documentId;
-
-  // Mise à jour du lien GED sur la réunion
+  // Mise à jour du lien GED et du statut sur la réunion
   await supabase
     .from("meetings")
     .update({
