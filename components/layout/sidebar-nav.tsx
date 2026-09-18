@@ -21,6 +21,8 @@ import {
   FileCheck,
   CheckSquare,
   HardHat,
+  Calendar,
+  Sparkles,
   Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,8 @@ interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/assistant-qhse", label: "Copilote QHSE (IA)", icon: Sparkles },
+  { href: "/reunions", label: "Réunions & PV", icon: Calendar },
   { href: "/rapports-qhse", label: "Rapports & Bilans QHSE", icon: Presentation },
   { href: "/permis-de-travail", label: "Permis de travail (PtW)", icon: FileCheck },
   { href: "/epi", label: "Gestion des EPI", icon: HardHat },
