@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, CheckCircle2, ShieldCheck, X, FileCheck, Edit3 } from "lucide-react";
+import { FileText, ShieldCheck, X, FileCheck, Edit3 } from "lucide-react";
 import { publishPVToGED } from "@/lib/services/meetings.service";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

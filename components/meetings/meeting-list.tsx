@@ -13,8 +13,6 @@ import {
   MapPin,
   Users,
   Eye,
-  ArrowRight,
-  Filter,
 } from "lucide-react";
 import type { Meeting, MeetingType, MeetingStatus } from "@/lib/types/meeting";
 import { MEETING_TYPE_LABELS, MEETING_STATUS_LABELS } from "@/lib/types/meeting";
@@ -30,7 +28,7 @@ interface MeetingListProps {
 }
 
 export function MeetingList({ initialMeetings, canManage }: MeetingListProps) {
-  const [meetings, setMeetings] = useState(initialMeetings);
+  const [meetings] = useState(initialMeetings);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<MeetingType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<MeetingStatus | "all">("all");
@@ -38,6 +36,7 @@ export function MeetingList({ initialMeetings, canManage }: MeetingListProps) {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isPrepareModalOpen, setIsPrepareModalOpen] = useState(false);
+  const [preparedAgendaTitles, setPreparedAgendaTitles] = useState<string[]>([]);
 
   const filtered = meetings.filter((m) => {
     if (typeFilter !== "all" && m.meetingType !== typeFilter) return false;
@@ -59,7 +58,6 @@ export function MeetingList({ initialMeetings, canManage }: MeetingListProps) {
     return true;
   });
 
-  const totalCount = meetings.length;
   const upcomingCount = meetings.filter((m) => m.status === "planifiee").length;
   const inProgressCount = meetings.filter((m) => m.status === "en_cours").length;
   const pvValidationCount = meetings.filter((m) => m.status === "pv_a_valider").length;
@@ -307,12 +305,16 @@ export function MeetingList({ initialMeetings, canManage }: MeetingListProps) {
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => setMeetings((prev) => prev)}
+        initialAgendaTitles={preparedAgendaTitles.length > 0 ? preparedAgendaTitles : undefined}
       />
 
       <PrepareMeetingModal
         isOpen={isPrepareModalOpen}
         onClose={() => setIsPrepareModalOpen(false)}
+        onSelectSuggestionsForNewMeeting={(selectedTitles) => {
+          setPreparedAgendaTitles(selectedTitles);
+          setIsCreateModalOpen(true);
+        }}
       />
     </div>
   );

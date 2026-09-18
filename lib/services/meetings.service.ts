@@ -494,7 +494,37 @@ export async function prepareMeetingSuggestions(): Promise<MeetingSuggestion[]> 
     });
   }
 
-  // 5. Documents externes à vérifier
+  // 5. Permis de Travail (PtW) suspendus ou en cours
+  for (const permit of permitsRes.data || []) {
+    suggestions.push({
+      sourceType: "work_permit",
+      sourceId: permit.id,
+      title: `Permis de travail ${permit.permit_number ? `[${permit.permit_number}] ` : ""}${permit.title}`,
+      subtitle: `Statut : ${permit.status === "suspended" ? "🔴 Suspendu (Risque élevé)" : "En cours sur site"}`,
+      dateLabel: permit.end_time ? new Date(permit.end_time).toLocaleDateString("fr-FR") : "Actif",
+      badgeText: permit.status === "suspended" ? "Suspendu" : "En cours",
+      badgeVariant: permit.status === "suspended" ? "destructive" : "warning",
+      href: `/permis-de-travail/${permit.id}`,
+    });
+  }
+
+  // 6. Équipements EPI défectueux ou expirés
+  for (const epi of epiRes.data || []) {
+    const itemInfo = epi.catalog_item as unknown as { name: string } | null;
+    const empInfo = epi.employee as unknown as { full_name: string } | null;
+    suggestions.push({
+      sourceType: "epi",
+      sourceId: epi.id,
+      title: `EPI ${epi.status === "defectueux" ? "Défectueux" : "Expiré"}: ${itemInfo?.name || "Équipement de Protection"}`,
+      subtitle: empInfo?.full_name ? `Affecté à : ${empInfo.full_name}` : "Non attribué",
+      dateLabel: epi.renewal_due_at ? new Date(epi.renewal_due_at).toLocaleDateString("fr-FR") : "Contrôle requis",
+      badgeText: epi.status === "defectueux" ? "Défectueux" : "Expiré",
+      badgeVariant: "destructive",
+      href: `/epi`,
+    });
+  }
+
+  // 7. Documents externes à vérifier
   for (const docRev of docsRes.data || []) {
     const docInfo = docRev.document as unknown as { title: string; code_reference: string } | null;
     suggestions.push({
@@ -509,7 +539,7 @@ export async function prepareMeetingSuggestions(): Promise<MeetingSuggestion[]> 
     });
   }
 
-  // 6. Actions réunions antérieures encore ouvertes
+  // 8. Actions réunions antérieures encore ouvertes
   for (const prevAct of prevMeetingsRes.data || []) {
     const meetingInfo = prevAct.meeting as unknown as { title: string; reference: string } | null;
     suggestions.push({

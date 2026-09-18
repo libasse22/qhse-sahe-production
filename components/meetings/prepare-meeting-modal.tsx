@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Check, CheckSquare, Square, X, Calendar, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Sparkles, CheckSquare, Square, X } from "lucide-react";
 import type { MeetingSuggestion } from "@/lib/types/meeting";
 import { prepareMeetingSuggestions, addAgendaItemsFromSuggestions } from "@/lib/services/meetings.service";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,15 @@ interface PrepareMeetingModalProps {
   meetingId?: string;
   isOpen: boolean;
   onClose: () => void;
+  onSelectSuggestionsForNewMeeting?: (selectedTitles: string[]) => void;
 }
 
-export function PrepareMeetingModal({ meetingId, isOpen, onClose }: PrepareMeetingModalProps) {
+export function PrepareMeetingModal({
+  meetingId,
+  isOpen,
+  onClose,
+  onSelectSuggestionsForNewMeeting,
+}: PrepareMeetingModalProps) {
   const router = useRouter();
   const [suggestions, setSuggestions] = useState<MeetingSuggestion[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -65,9 +71,10 @@ export function PrepareMeetingModal({ meetingId, isOpen, onClose }: PrepareMeeti
     }
 
     if (!meetingId) {
-      // Redirection vers création avec suggestions sélectionnées
+      if (onSelectSuggestionsForNewMeeting) {
+        onSelectSuggestionsForNewMeeting(selectedItems.map((s) => s.title));
+      }
       onClose();
-      router.push(`/reunions`);
       return;
     }
 

@@ -5,12 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Calendar,
-  Clock,
   MapPin,
   Users,
   FileText,
   CheckCircle2,
-  AlertTriangle,
   ArrowLeft,
   Plus,
   Play,
@@ -18,11 +16,9 @@ import {
   ExternalLink,
   Sparkles,
   ShieldCheck,
-  CheckSquare,
-  Square,
   History,
 } from "lucide-react";
-import type { MeetingDetails, MeetingStatus, AttendanceStatus } from "@/lib/types/meeting";
+import type { MeetingDetails, MeetingStatus } from "@/lib/types/meeting";
 import { MEETING_TYPE_LABELS, MEETING_STATUS_LABELS, ATTENDANCE_STATUS_LABELS } from "@/lib/types/meeting";
 import { updateMeetingStatus, addMeetingDecision, confirmAndCreateMeetingActions } from "@/lib/services/meetings.service";
 import { GeneratePVModal } from "@/components/meetings/generate-pv-modal";

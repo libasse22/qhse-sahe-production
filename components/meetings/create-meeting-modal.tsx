@@ -1,32 +1,42 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, MapPin, Users, X, Plus, Trash2, FileText } from "lucide-react";
+import { Calendar, X, Plus, Trash2 } from "lucide-react";
 import type { MeetingType } from "@/lib/types/meeting";
 import { MEETING_TYPE_LABELS } from "@/lib/types/meeting";
 import { createMeeting } from "@/lib/services/meetings.service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface CreateMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialAgendaTitles?: string[];
 }
 
-export function CreateMeetingModal({ isOpen, onClose, onSuccess }: CreateMeetingModalProps) {
+export function CreateMeetingModal({ isOpen, onClose, onSuccess, initialAgendaTitles }: CreateMeetingModalProps) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [meetingType, setMeetingType] = useState<MeetingType>("qhse");
   const [scheduledAt, setScheduledAt] = useState("");
   const [location, setLocation] = useState("");
   const [description, setDescription] = useState("");
-  const [agendaTitles, setAgendaTitles] = useState<string[]>(["Validation PV précédent", "Suivi des actions CAPA"]);
+  const [agendaTitles, setAgendaTitles] = useState<string[]>(
+    initialAgendaTitles || ["Validation PV précédent", "Suivi des actions CAPA"]
+  );
   const [newAgendaTitle, setNewAgendaTitle] = useState("");
 
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialAgendaTitles && initialAgendaTitles.length > 0) {
+      setAgendaTitles(initialAgendaTitles);
+    }
+  }, [initialAgendaTitles]);
 
   if (!isOpen) return null;
 
@@ -74,7 +84,7 @@ export function CreateMeetingModal({ isOpen, onClose, onSuccess }: CreateMeeting
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-800 space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-sky-600" />
@@ -150,7 +160,20 @@ export function CreateMeetingModal({ isOpen, onClose, onSuccess }: CreateMeeting
 
           <div>
             <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Ordre du Jour Initial
+              Description & Objectifs
+            </label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Objectifs de la réunion et consignes préalables..."
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Ordre du Jour Initial ({agendaTitles.length})
             </label>
             <div className="space-y-2">
               <div className="flex gap-2">

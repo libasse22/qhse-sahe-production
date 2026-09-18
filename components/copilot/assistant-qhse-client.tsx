@@ -18,11 +18,11 @@ interface MessageItem {
 }
 
 const QUICK_PROMPTS = [
-  "Quelles sont les actions correctives (CAPA) en retard ?",
-  "Quels sont les permis de travail actifs ou à risque ?",
-  "Résumé des 5 derniers incidents déclarés",
-  "Documents externes nécessitant une vérification ISO 7.5",
-  "Synthèse pour la prochaine réunion QHSE"
+  "Quels sont les sujets à traiter lors de ma prochaine réunion QHSE ?",
+  "Quelles décisions de la dernière réunion sont encore ouvertes ?",
+  "Quelles CAPA sont en retard ?",
+  "Montre-moi les non-conformités d'audit sans preuve.",
+  "Prépare un ordre du jour.",
 ];
 
 export function AssistantQhseClient() {

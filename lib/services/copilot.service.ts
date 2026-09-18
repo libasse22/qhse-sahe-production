@@ -120,6 +120,53 @@ export async function searchWorkPermits(): Promise<CopilotSource[]> {
   }));
 }
 
+export async function searchMeetingDecisions(): Promise<CopilotSource[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("meeting_decisions")
+    .select("id, decision_text, deadline, status, meeting:meetings(id, reference, title)")
+    .neq("status", "cloturee")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (!data) return [];
+  return data.map((d) => {
+    const m = d.meeting as unknown as { id: string; reference: string; title: string } | null;
+    return {
+      id: d.id,
+      module: "previous_meeting",
+      title: `[Décision ${m?.reference || "Réunion"}] ${d.decision_text}`,
+      reference: m?.reference,
+      href: m?.id ? `/reunions/${m.id}` : "/reunions",
+      badgeText: d.status || "Ouverte",
+      badgeVariant: "secondary",
+    };
+  });
+}
+
+export async function searchAuditNonConformities(): Promise<CopilotSource[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("audit_items")
+    .select("id, title, requirement, status, audit:audits(id, title, reference_framework)")
+    .eq("status", "non_conforme")
+    .limit(10);
+
+  if (!data) return [];
+  return data.map((item) => {
+    const auditInfo = item.audit as unknown as { id: string; title: string; reference_framework: string } | null;
+    return {
+      id: item.id,
+      module: "audit",
+      title: `[Audit Non-Conformité] ${item.title}`,
+      reference: auditInfo?.reference_framework || "Audit",
+      href: auditInfo?.id ? `/audits/${auditInfo.id}` : "/audits",
+      badgeText: "Non conforme",
+      badgeVariant: "destructive",
+    };
+  });
+}
+
 // ----------------------------------------------------------------------------
 // 2. MOTEUR SERVEUR ASK QHSE & PROVENANCE STRICTE
 // ----------------------------------------------------------------------------
@@ -163,6 +210,30 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
 
     markdownContent += `\n> **Statut :** **PROPOSITION**. Vous pouvez ajouter ces éléments directement à l'ordre du jour d'une réunion.`;
     responseType = "proposal";
+  } else if (queryLower.includes("décision") || queryLower.includes("decision")) {
+    const decisions = await searchMeetingDecisions();
+    sources.push(...decisions);
+
+    markdownContent = `### 📌 Suivi des Décisions de Réunion\n\nVoici les **${decisions.length} décision(s) encore ouvertes** issues des dernières réunions QHSE :\n\n`;
+    if (decisions.length === 0) {
+      markdownContent += `*Aucune décision ouverte. Toutes les décisions antérieures ont été actées et clôturées.*\n`;
+    } else {
+      for (const d of decisions) {
+        markdownContent += `- **${d.title}** (Statut : *${d.badgeText}*)\n`;
+      }
+    }
+  } else if (queryLower.includes("audit") || queryLower.includes("non-conform") || queryLower.includes("preuve")) {
+    const nonConformities = await searchAuditNonConformities();
+    sources.push(...nonConformities);
+
+    markdownContent = `### 🔍 Points d'Audit Non Conformes & Preuves Manquantes\n\nIl y a **${nonConformities.length} non-conformité(s) d'audit** répertoriée(s) :\n\n`;
+    if (nonConformities.length === 0) {
+      markdownContent += `*Aucune non-conformité d'audit en attente de preuve. Les rapports d'audit sont conformes.*\n`;
+    } else {
+      for (const nc of nonConformities) {
+        markdownContent += `- **${nc.title}** (${nc.reference})\n`;
+      }
+    }
   } else if (queryLower.includes("capa") || queryLower.includes("retard") || queryLower.includes("bloqu")) {
     const capas = await searchCAPA();
     sources.push(...capas);
