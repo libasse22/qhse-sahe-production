@@ -24,6 +24,7 @@ import {
   Calendar,
   Sparkles,
   Wrench,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Rôles & permissions",
     icon: ShieldCheck,
     permission: "roles.manage",
+  },
+  {
+    href: "/parametres/knowledge",
+    label: "Base de Connaissances",
+    icon: Database,
+    permission: "settings.manage",
   },
   {
     href: "/parametres",

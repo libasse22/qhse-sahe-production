@@ -33,6 +33,25 @@ export default async function ParametresPage() {
           <AppNameForm currentName={settings.appName} />
         </CardContent>
       </Card>
+
+      <Card className="hover:border-emerald-500/50 transition-colors">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">Base de Connaissances QHSE</CardTitle>
+              <CardDescription className="mt-1">
+                Gérer les sources de connaissances (PDF, DOCX, Excel), ré-ingérer les documents et configurer le socle d&apos;ingestion.
+              </CardDescription>
+            </div>
+            <a
+              href="/parametres/knowledge"
+              className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+            >
+              Accéder au Socle
+            </a>
+          </div>
+        </CardHeader>
+      </Card>
     </div>
   );
 }

@@ -12,17 +12,28 @@ const TabsContext = React.createContext<TabsContextValue | null>(null);
 
 export function Tabs({
   value,
+  defaultValue,
   onValueChange,
   children,
   className,
 }: {
-  value: string;
-  onValueChange: (value: string) => void;
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
   children: React.ReactNode;
   className?: string;
 }) {
+  const [tabValue, setTabValue] = React.useState(value || defaultValue || "");
+
+  const activeValue = value !== undefined ? value : tabValue;
+
+  const handleValueChange = (val: string) => {
+    setTabValue(val);
+    if (onValueChange) onValueChange(val);
+  };
+
   return (
-    <TabsContext.Provider value={{ value, onValueChange }}>
+    <TabsContext.Provider value={{ value: activeValue, onValueChange: handleValueChange }}>
       <div className={cn("space-y-2", className)}>{children}</div>
     </TabsContext.Provider>
   );
