@@ -30,11 +30,10 @@ export async function generateMeetingReference(): Promise<string | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
-  if (!profile?.company_id) return null;
+  const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).maybeSingle();
 
   const { data: codeData, error } = await supabase.rpc("generate_meeting_reference", {
-    p_company_id: profile.company_id,
+    p_company_id: profile?.company_id || null,
   });
 
   if (error || !codeData) {
@@ -261,28 +260,32 @@ export async function createMeeting(params: {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Session expirée" };
+  if (!user) return { error: "Session expirée, veuillez vous reconnecter." };
 
-  const { data: profile } = await supabase.from("profiles").select("company_id, full_name").eq("id", user.id).single();
-  if (!profile?.company_id) return { error: "Profil entreprise introuvable" };
+  const { data: profile } = await supabase.from("profiles").select("company_id, full_name").eq("id", user.id).maybeSingle();
 
   const ref = (await generateMeetingReference()) || `REU-${new Date().getFullYear()}-001`;
 
+  const meetingPayload: Record<string, unknown> = {
+    reference: ref,
+    title: params.title.trim(),
+    meeting_type: params.meetingType,
+    scheduled_at: params.scheduledAt,
+    location: params.location?.trim() || null,
+    organizer_user_id: params.organizerUserId || user.id,
+    secretary_user_id: params.secretaryUserId || null,
+    description: params.description?.trim() || null,
+    created_by: user.id,
+  };
+
+  if (profile?.company_id) {
+    meetingPayload.company_id = profile.company_id;
+  }
+
   const { data: meetingData, error: insertErr } = await supabase
     .from("meetings")
-    .insert({
-      company_id: profile.company_id,
-      reference: ref,
-      title: params.title.trim(),
-      meeting_type: params.meetingType,
-      scheduled_at: params.scheduledAt,
-      location: params.location?.trim() || null,
-      organizer_user_id: params.organizerUserId || user.id,
-      secretary_user_id: params.secretaryUserId || null,
-      description: params.description?.trim() || null,
-      created_by: user.id,
-    })
-    .select("id")
+    .insert(meetingPayload)
+    .select("id, company_id")
     .single();
 
   if (insertErr || !meetingData) return { error: `Impossible de créer la réunion: ${insertErr?.message}` };
@@ -293,7 +296,7 @@ export async function createMeeting(params: {
   await supabase.from("meeting_participants").insert({
     meeting_id: meetingId,
     user_id: params.organizerUserId || user.id,
-    full_name: profile.full_name || "Organisateur",
+    full_name: profile?.full_name || "Organisateur",
     role: "Organisateur",
     attendance_status: "present",
     signature_required: true,
@@ -324,14 +327,21 @@ export async function createMeeting(params: {
   }
 
   // Log historique
-  await supabase.from("meeting_history").insert({
-    company_id: profile.company_id,
+  const historyPayload: Record<string, unknown> = {
     meeting_id: meetingId,
     event_type: "meeting_created",
     actor_id: user.id,
-    actor_name: profile.full_name || "Utilisateur",
+    actor_name: profile?.full_name || "Utilisateur",
     details: { reference: ref, title: params.title },
-  });
+  };
+
+  if (meetingData.company_id) {
+    historyPayload.company_id = meetingData.company_id;
+  } else if (profile?.company_id) {
+    historyPayload.company_id = profile.company_id;
+  }
+
+  await supabase.from("meeting_history").insert(historyPayload);
 
   revalidatePath("/reunions");
   return { error: null, meetingId, reference: ref };
@@ -754,23 +764,27 @@ export async function confirmAndCreateMeetingActions(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Session expirée" };
 
-  const { data: profile } = await supabase.from("profiles").select("company_id, full_name").eq("id", user.id).single();
-  if (!profile?.company_id) return { error: "Profil introuvable" };
+  const { data: profile } = await supabase.from("profiles").select("company_id, full_name").eq("id", user.id).maybeSingle();
 
   for (const act of actionsToCreate) {
     let createdCapaId: string | null = null;
 
     if (act.createAsCapa) {
+      const capaPayload: Record<string, unknown> = {
+        description: `[Réunion] ${act.title}${act.description ? ` : ${act.description}` : ""}`,
+        responsable_id: act.responsibleUserId || null,
+        echeance: act.dueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        status: "a_faire",
+        meeting_id: meetingId,
+      };
+
+      if (profile?.company_id) {
+        capaPayload.company_id = profile.company_id;
+      }
+
       const { data: capaData } = await supabase
         .from("actions_correctives")
-        .insert({
-          company_id: profile.company_id,
-          description: `[Réunion] ${act.title}${act.description ? ` : ${act.description}` : ""}`,
-          responsable_id: act.responsibleUserId || null,
-          echeance: act.dueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-          status: "a_faire",
-          meeting_id: meetingId,
-        })
+        .insert(capaPayload)
         .select("id")
         .single();
 
@@ -790,14 +804,19 @@ export async function confirmAndCreateMeetingActions(
     });
   }
 
-  await supabase.from("meeting_history").insert({
-    company_id: profile.company_id,
+  const historyPayload: Record<string, unknown> = {
     meeting_id: meetingId,
     event_type: "action_confirmed",
     actor_id: user.id,
-    actor_name: profile.full_name || "Utilisateur",
+    actor_name: profile?.full_name || "Utilisateur",
     details: { created_count: actionsToCreate.length },
-  });
+  };
+
+  if (profile?.company_id) {
+    historyPayload.company_id = profile.company_id;
+  }
+
+  await supabase.from("meeting_history").insert(historyPayload);
 
   revalidatePath(`/reunions/${meetingId}`);
   revalidatePath("/actions");
