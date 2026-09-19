@@ -1,5 +1,3 @@
-"use server";
-
 import { createClient } from "@/lib/supabase/server";
 import type { CopilotResponse, CopilotSource, CopilotResponseType } from "@/lib/types/copilot";
 import { listMeetings, prepareMeetingSuggestions } from "@/lib/services/meetings.service";
