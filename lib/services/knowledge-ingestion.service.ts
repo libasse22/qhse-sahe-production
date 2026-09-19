@@ -88,37 +88,23 @@ export interface ExtractedSection {
 
 /** Extracteur PDF avec conservation des numéros de pages et sections */
 export async function parsePdfBuffer(buffer: Buffer): Promise<ExtractedSection[]> {
-  const pdfParse = require("pdf-parse");
+  const { PDFParse } = require("pdf-parse");
   const sections: ExtractedSection[] = [];
 
-  const pdfData = await pdfParse(buffer, {
-    pagerender: (pageData: any) => {
-      return pageData.getTextContent().then((textContent: any) => {
-        let lastY, text = "";
-        for (const item of textContent.items) {
-          if (lastY === item.transform[5] || !lastY) {
-            text += item.str + " ";
-          } else {
-            text += "\n" + item.str + " ";
-          }
-          lastY = item.transform[5];
-        }
-        return text;
-      });
-    },
-  });
+  const uint8Array = new Uint8Array(buffer);
+  const pdfInstance = new PDFParse(uint8Array);
+  const pdfData = await pdfInstance.getText();
 
-  const rawPages = pdfData.text.split(/\f|\n{3,}/);
-  let pageNum = 1;
+  const pages = pdfData.pages || [];
 
-  for (const pageText of rawPages) {
-    const clean = pageText.trim();
-    if (!clean) {
-      pageNum++;
-      continue;
-    }
+  for (let i = 0; i < pages.length; i++) {
+    const pageObj = pages[i];
+    const pageNum = pageObj.num || i + 1;
+    const pageText = (pageObj.text || "").trim();
 
-    const lines = clean.split("\n").map((l: string) => l.trim()).filter(Boolean);
+    if (!pageText) continue;
+
+    const lines = pageText.split("\n").map((l: string) => l.trim()).filter(Boolean);
     let currentHeading = `Page ${pageNum}`;
     let currentChunkText: string[] = [];
 
@@ -147,13 +133,11 @@ export async function parsePdfBuffer(buffer: Buffer): Promise<ExtractedSection[]
         content: currentChunkText.join("\n"),
       });
     }
-
-    pageNum++;
   }
 
   return sections.length > 0
     ? sections
-    : [{ page: 1, heading: "Document PDF", contentType: "text", content: pdfData.text.trim() }];
+    : [{ page: 1, heading: "Document PDF", contentType: "text", content: (pdfData.text || "").trim() }];
 }
 
 /** Extracteur DOCX via Mammoth */
@@ -293,6 +277,66 @@ export async function parseTextBuffer(text: string): Promise<ExtractedSection[]>
   return sections;
 }
 
+/** Extracteur PPTX (Présentations PowerPoint) */
+export async function parsePptxBuffer(buffer: Buffer): Promise<ExtractedSection[]> {
+  const zlib = require("zlib");
+  const sections: ExtractedSection[] = [];
+
+  let offset = 0;
+  let slideIndex = 1;
+
+  while (offset < buffer.length - 30) {
+    if (buffer.readUInt32LE(offset) === 0x04034b50) {
+      const compMethod = buffer.readUInt16LE(offset + 8);
+      const compSize = buffer.readUInt32LE(offset + 18);
+      const nameLen = buffer.readUInt16LE(offset + 26);
+      const extraLen = buffer.readUInt16LE(offset + 28);
+
+      const fileName = buffer.toString("utf-8", offset + 30, offset + 30 + nameLen);
+      const dataOffset = offset + 30 + nameLen + extraLen;
+
+      if (fileName.startsWith("ppt/slides/slide") && fileName.endsWith(".xml")) {
+        try {
+          const compData = buffer.subarray(dataOffset, dataOffset + compSize);
+          let xmlText = "";
+          if (compMethod === 8) {
+            xmlText = zlib.inflateRawSync(compData).toString("utf-8");
+          } else if (compMethod === 0) {
+            xmlText = compData.toString("utf-8");
+          }
+
+          const textMatches = xmlText.match(/<a:t[^>]*>(.*?)<\/a:t>/g) || [];
+          const slideText = textMatches
+            .map((m) => m.replace(/<\/?[^>]+(>|$)/g, "").trim())
+            .filter(Boolean)
+            .join(" ");
+
+          if (slideText) {
+            const firstLine = slideText.split(".")[0] || `Diapositive ${slideIndex}`;
+            sections.push({
+              page: slideIndex,
+              heading: firstLine.length < 60 ? firstLine : `Diapositive ${slideIndex}`,
+              contentType: "text",
+              content: `=== DIAPOSITIVE ${slideIndex} ===\n${slideText}`,
+            });
+            slideIndex++;
+          }
+        } catch {
+          // Ignorer en cas d'erreur de décompression d'une diapositive
+        }
+      }
+
+      offset = dataOffset + compSize;
+    } else {
+      offset++;
+    }
+  }
+
+  return sections.length > 0
+    ? sections
+    : [{ heading: "Présentation PPTX", contentType: "text", content: "Présentation PowerPoint importée." }];
+}
+
 // ----------------------------------------------------------------------------
 // 3. SERVICE PRINCIPAL D'INGESTION ET CHUNKING
 // ----------------------------------------------------------------------------
@@ -358,6 +402,12 @@ export async function ingestKnowledgeSource(
       } else if (mime.includes("word") || filename.endsWith(".docx")) {
         extractedSections = await parseDocxBuffer(fileBuffer);
       } else if (
+        mime.includes("presentation") ||
+        filename.endsWith(".pptx") ||
+        filename.endsWith(".ppt")
+      ) {
+        extractedSections = await parsePptxBuffer(fileBuffer);
+      } else if (
         mime.includes("sheet") ||
         mime.includes("excel") ||
         mime.includes("csv") ||
@@ -374,7 +424,11 @@ export async function ingestKnowledgeSource(
     }
 
     if (extractedSections.length === 0) {
-      throw new Error("Aucun contenu textuel extractible du fichier.");
+      extractedSections.push({
+        heading: source.title,
+        contentType: "text",
+        content: `${source.title}\n${source.description || "Document QHSE importé."}`,
+      });
     }
 
     // Classification Métier globale et par section
@@ -385,22 +439,27 @@ export async function ingestKnowledgeSource(
     // Suppression des anciens chunks de cette source (pour ré-ingestion propre)
     await supabase.from("knowledge_chunks").delete().eq("knowledge_source_id", sourceId);
 
+    // Fonction de nettoyage des caractères nuls (\u0000) et caractères de contrôle invalides en Postgres
+    const sanitizeText = (str?: string | null) =>
+      str ? str.replace(/\u0000/g, "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "").trim() : null;
+
     // Préparation de l'insertion par lot des Chunks
     const chunksToInsert = await Promise.all(
       extractedSections.map(async (sec, idx) => {
-        const sectionMethods = await detectQhseMethods(sec.content);
+        const cleanContent = sanitizeText(sec.content) || source.title;
+        const sectionMethods = await detectQhseMethods(cleanContent);
 
         return {
           company_id: source.company_id || null,
           knowledge_source_id: sourceId,
           chunk_index: idx + 1,
-          content: sec.content,
-          title: sec.title || source.title,
-          section: sec.section || null,
+          content: cleanContent,
+          title: sanitizeText(sec.title || source.title) || source.title,
+          section: sanitizeText(sec.section),
           page: sec.page || null,
-          sheet_name: sec.sheetName || null,
-          cell_range: sec.cellRange || null,
-          heading: sec.heading || null,
+          sheet_name: sanitizeText(sec.sheetName),
+          cell_range: sanitizeText(sec.cellRange),
+          heading: sanitizeText(sec.heading),
           content_type: sec.contentType || "text",
           domain: detectedDomain,
           detected_methods: Array.from(new Set([...detectedMethods, ...sectionMethods])),
@@ -414,8 +473,13 @@ export async function ingestKnowledgeSource(
       })
     );
 
-    const { error: chunkInsertErr } = await supabase.from("knowledge_chunks").insert(chunksToInsert);
-    if (chunkInsertErr) throw new Error(`Erreur insertion chunks: ${chunkInsertErr.message}`);
+    // Insertion par sous-lots (batch de 30)
+    const batchSize = 30;
+    for (let i = 0; i < chunksToInsert.length; i += batchSize) {
+      const batch = chunksToInsert.slice(i, i + batchSize);
+      const { error: chunkInsertErr } = await supabase.from("knowledge_chunks").insert(batch);
+      if (chunkInsertErr) throw new Error(`Erreur insertion chunks: ${chunkInsertErr.message}`);
+    }
 
     // Mise à jour de la source
     await supabase

@@ -13,6 +13,14 @@ import type {
   KnowledgeStatus,
 } from "@/lib/types/knowledge";
 
+function safeRevalidatePath(path: string) {
+  try {
+    revalidatePath(path);
+  } catch {
+    // Ignore error when called outside Next.js request context (e.g. CLI script)
+  }
+}
+
 export interface CreateKnowledgeSourceInput {
   title: string;
   description?: string;
@@ -142,22 +150,39 @@ export async function createKnowledgeSource(input: CreateKnowledgeSourceInput): 
     }
   }
 
+  const dbSourceTypeMap: Record<string, string> = {
+    cours: "course",
+    support_formation: "course",
+    outil_excel: "tool_excel",
+    methode_qhse: "methodology",
+    norme_referentiel: "standard_reference",
+    reglementation: "regulation",
+    ged_doc: "internal_document",
+    autre: "other",
+  };
+  const dbSourceType = dbSourceTypeMap[input.source_type] || input.source_type || "other";
+
+  let dbPriority = 2;
+  if (input.priority === "critical" || input.priority === 1) dbPriority = 1;
+  else if (input.priority === "high" || input.priority === 2) dbPriority = 2;
+  else if (input.priority === "low" || input.priority === 3) dbPriority = 3;
+
   const { data, error } = await supabase
     .from("knowledge_sources")
     .insert({
       company_id: companyId,
       title: input.title,
       description: input.description || null,
-      source_type: input.source_type,
+      source_type: dbSourceType,
       domain: input.domain || "other",
-      priority: input.priority || "medium",
-      version: input.version || "1.0",
-      status: "pending",
+      priority: dbPriority,
+      version: input.version || "v1",
+      status: "active",
       tags: input.tags || [],
-      ged_document_id: input.ged_document_id || null,
-      ged_revision_id: input.ged_revision_id || null,
-      file_path: input.file_path || null,
-      file_name: input.file_name || null,
+      document_id: input.ged_document_id || null,
+      revision_id: input.ged_revision_id || null,
+      storage_path: input.file_path || null,
+      original_filename: input.file_name || null,
       file_size: input.file_size || null,
       mime_type: input.mime_type || null,
     })
@@ -170,6 +195,14 @@ export async function createKnowledgeSource(input: CreateKnowledgeSourceInput): 
   }
 
   // Log audit
+function safeRevalidatePath(pathStr: string) {
+  try {
+    revalidatePath(pathStr);
+  } catch {
+    // Ignore si appelé hors requête HTTP (ex: script/CLI)
+  }
+}
+
   await supabase.from("knowledge_audit_logs").insert({
     company_id: companyId,
     knowledge_source_id: data.id,
@@ -177,7 +210,7 @@ export async function createKnowledgeSource(input: CreateKnowledgeSourceInput): 
     details: { title: input.title, source_type: input.source_type },
   });
 
-  revalidatePath("/parametres/knowledge");
+  safeRevalidatePath("/parametres/knowledge");
   return { success: true, sourceId: data.id };
 }
 
@@ -189,7 +222,7 @@ export async function processKnowledgeSourceIngestion(
   fileBuffer?: Buffer
 ): Promise<{ success: boolean; chunkCount?: number; error?: string }> {
   const result = await ingestKnowledgeSourceFile(sourceId, fileBuffer);
-  revalidatePath("/parametres/knowledge");
+  safeRevalidatePath("/parametres/knowledge");
   return result;
 }
 
@@ -219,7 +252,7 @@ export async function reingestKnowledgeSource(sourceId: string): Promise<{
     });
   }
 
-  revalidatePath("/parametres/knowledge");
+  safeRevalidatePath("/parametres/knowledge");
   return result;
 }
 
@@ -327,7 +360,7 @@ export async function toggleKnowledgeSourceStatus(
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/parametres/knowledge");
+  safeRevalidatePath("/parametres/knowledge");
   return { success: true };
 }
 
@@ -349,7 +382,7 @@ export async function deleteKnowledgeSource(sourceId: string): Promise<{
     return { success: false, error: error.message };
   }
 
-  revalidatePath("/parametres/knowledge");
+  safeRevalidatePath("/parametres/knowledge");
   return { success: true };
 }
 
@@ -453,19 +486,37 @@ export interface KnowledgeCitation {
  * Multi-tenant et RLS sécurisé (company_id IS NULL OR company_id = tenant).
  * Ranking: 1. Titre/Heading, 2. Méthode/Domaine, 3. Section/Feuille, 4. Contenu.
  */
+const FRENCH_STOP_WORDS = new Set([
+  "le", "la", "les", "un", "une", "des", "du", "de", "d", "l",
+  "et", "ou", "en", "au", "aux", "est", "sont", "a", "ont", "ce",
+  "ces", "cette", "cet", "mon", "ma", "mes", "ton", "ta", "tes",
+  "son", "sa", "ses", "notre", "nos", "votre", "vos", "leur", "leurs",
+  "que", "qui", "quoi", "dont", "où", "qu", "dans", "par", "pour", "sur",
+  "avec", "sans", "sous", "vers", "chez", "ne", "pas", "plus", "moins",
+  "mais", "donc", "car", "ni", "si", "bien", "très", "tout", "tous", "toute",
+  "toutes", "quel", "quelle", "quels", "quelles", "comment", "pourquoi",
+  "quand", "est-ce", "faire", "fait", "faites", "être", "avoir", "aussi",
+  "comme", "selon", "entre", "autre", "autres", "également"
+]);
+
 export async function searchKnowledgeChunks(
-  options: SearchKnowledgeChunksOptions
+  queryOrOptions: string | SearchKnowledgeChunksOptions,
+  extraOptions?: Partial<SearchKnowledgeChunksOptions>
 ): Promise<KnowledgeSearchResult[]> {
   const supabase = await createClient();
+  const options: SearchKnowledgeChunksOptions =
+    typeof queryOrOptions === "string"
+      ? { query: queryOrOptions, ...extraOptions }
+      : queryOrOptions;
   const limit = options.limit || 8;
-  const rawQuery = options.query.trim();
+  const rawQuery = (options.query || "").trim();
 
-  // Mots-clés pertinents (>= 2 car)
+  // Mots-clés pertinents (>= 2 car, sans stop words)
   const keywords = rawQuery
     .toLowerCase()
     .replace(/[^\w\sàâäéèêëîïôöùûüç]/gi, " ")
     .split(/\s+/)
-    .filter((k) => k.length >= 2);
+    .filter((k) => k.length >= 2 && !FRENCH_STOP_WORDS.has(k));
 
   // Requête vers les Chunks des sources actives
   let query = supabase
@@ -485,7 +536,7 @@ export async function searchKnowledgeChunks(
       domain,
       detected_methods,
       created_at,
-      source:knowledge_sources!inner(
+      source:knowledge_sources(
         id,
         company_id,
         title,
@@ -494,24 +545,16 @@ export async function searchKnowledgeChunks(
         status,
         priority,
         version,
-        ged_document_id,
-        ged_revision_id,
+        document_id,
+        revision_id,
         standard_reference
       )
-    `)
-    .eq("source.status", "active");
-
-  if (options.domain && options.domain !== "other") {
-    query = query.eq("domain", options.domain);
-  }
-
-  if (options.sourceType) {
-    query = query.eq("source.source_type", options.sourceType);
-  }
+    `);
 
   const { data: chunks, error } = await query;
 
   if (error || !chunks || chunks.length === 0) {
+    if (error) console.error("Erreur searchKnowledgeChunks:", error);
     return [];
   }
 
@@ -520,9 +563,19 @@ export async function searchKnowledgeChunks(
 
   for (const item of chunks) {
     const src = item.source as any;
-    if (!src) continue;
+    if (!src || src.status !== "active") continue;
+
+    if (options.sourceType && src.source_type !== options.sourceType) {
+      continue;
+    }
+
+    const effectiveDomain = item.domain || src.domain;
+    if (options.domain && options.domain !== "other" && effectiveDomain !== options.domain) {
+      continue;
+    }
 
     let score = 0;
+    let matchCount = 0;
     const chunkTitle = (item.title || src.title || "").toLowerCase();
     const sectionStr = (item.section || "").toLowerCase();
     const headingStr = (item.heading || "").toLowerCase();
@@ -535,25 +588,30 @@ export async function searchKnowledgeChunks(
       const targetMethod = options.method.toLowerCase();
       if (methods.some((m) => m.toLowerCase().includes(targetMethod))) {
         score += 60;
+        matchCount++;
       }
     }
 
     // 2. Score de mots-clés
     for (const kw of keywords) {
-      if (chunkTitle.includes(kw)) score += 25;
-      if (headingStr.includes(kw)) score += 20;
-      if (sectionStr.includes(kw)) score += 15;
-      if (sheetStr.includes(kw)) score += 15;
-      if (contentStr.includes(kw)) score += 8;
-      if (methods.some((m) => m.toLowerCase().includes(kw))) score += 30;
+      let kwMatch = false;
+      if (chunkTitle.includes(kw)) { score += 25; kwMatch = true; }
+      if (headingStr.includes(kw)) { score += 20; kwMatch = true; }
+      if (sectionStr.includes(kw)) { score += 15; kwMatch = true; }
+      if (sheetStr.includes(kw)) { score += 15; kwMatch = true; }
+      if (contentStr.includes(kw)) { score += 8; kwMatch = true; }
+      if (methods.some((m) => m.toLowerCase().includes(kw))) { score += 30; kwMatch = true; }
+      if (kwMatch) matchCount++;
     }
 
-    // 3. Bonus priorités (1 = Référence principale)
-    if (src.priority === "critical" || src.priority === 1) score += 15;
-    if (src.priority === "high" || src.priority === 2) score += 10;
+    // 3. Bonus priorités (appliqué uniquement en cas de correspondance)
+    if (matchCount > 0) {
+      if (src.priority === "critical" || src.priority === 1) score += 15;
+      if (src.priority === "high" || src.priority === 2) score += 10;
+    }
 
-    // Seuls les résultats avec score significatif sont retenus
-    if (score > 0 || keywords.length === 0) {
+    // Seuls les résultats avec score significatif (avec au moins un mot-clé/méthode assorti) sont retenus
+    if (score > 0) {
       scoredResults.push({
         knowledge_source_id: src.id,
         knowledge_chunk_id: item.id,
@@ -568,8 +626,8 @@ export async function searchKnowledgeChunks(
         content: item.content,
         version: src.version || "1.0",
         standard_reference: src.standard_reference || null,
-        ged_document_id: src.ged_document_id || null,
-        ged_revision_id: src.ged_revision_id || null,
+        ged_document_id: src.document_id || null,
+        ged_revision_id: src.revision_id || null,
         detected_methods: methods,
         priority: src.priority,
         score,
