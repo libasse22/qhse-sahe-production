@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { CopilotResponse, CopilotSource, CopilotResponseType } from "@/lib/types/copilot";
-import { getCockpitData } from "@/lib/services/cockpit.service";
 import { listMeetings, prepareMeetingSuggestions } from "@/lib/services/meetings.service";
 import { listDocuments } from "@/lib/services/documents.service";
 import {
@@ -10,6 +9,12 @@ import {
   buildKnowledgeCitation,
   type KnowledgeSearchResult,
 } from "@/lib/services/knowledge.service";
+
+import {
+  classifyCopilotIntent,
+  handleMethodExplain,
+  handleMethodApply,
+} from "@/lib/services/copilot-methods.service";
 
 // ----------------------------------------------------------------------------
 // 1. OUTILS INTERNES DU COPILOTE (RLS & TENANT RESTRICTED)
@@ -222,43 +227,23 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
 
   let responseType: CopilotResponseType = "fact";
   let markdownContent = "";
+  let methodAnalysis: any = undefined;
 
-  // Détection des méthodes métiers QHSE
-  const knownMethods = [
-    "amdec",
-    "pestel",
-    "swot",
-    "ishikawa",
-    "5 pourquoi",
-    "qqoqccp",
-    "raci",
-    "kpi",
-    "kri",
-    "hazop",
-    "5s",
-    "pdca",
-  ];
-  const detectedMethod = knownMethods.find((m) => queryLower.includes(m));
+  // 1. Classification Métier & Intention (METHOD_EXPLAIN, METHOD_APPLY, KNOWLEDGE_SEARCH, OPERATIONAL_DATA)
+  const { intent, method } = await classifyCopilotIntent(userQuery);
 
-  // Détection si l'intention est centrée sur les connaissances / méthodes / normes
-  const isKnowledgeIntent =
-    Boolean(detectedMethod) ||
-    queryLower.includes("cours") ||
-    queryLower.includes("formation") ||
-    queryLower.includes("norme") ||
-    queryLower.includes("iso") ||
-    queryLower.includes("méthode") ||
-    queryLower.includes("methode") ||
-    queryLower.includes("référentiel") ||
-    queryLower.includes("referentiel") ||
-    queryLower.includes("matrice") ||
-    queryLower.includes("connaissance") ||
-    queryLower.includes("comment faire") ||
-    queryLower.includes("comment réaliser") ||
-    queryLower.includes("que dit");
-
-  // 1. Détection d'Intention & Agrégation Déterministe Données Réelles
-  if (queryLower.includes("sujet") || queryLower.includes("ordre du jour") || queryLower.includes("prochaine réunion")) {
+  if (intent === "METHOD_EXPLAIN" && method) {
+    const explainRes = await handleMethodExplain(method, userQuery);
+    responseType = explainRes.isMissingInfo ? "missing_info" : "method_explain";
+    markdownContent = explainRes.markdownContent;
+    sources.push(...explainRes.sources);
+  } else if (intent === "METHOD_APPLY" && method) {
+    const applyRes = await handleMethodApply(method, userQuery);
+    responseType = "method_apply";
+    markdownContent = applyRes.markdownContent;
+    sources.push(...applyRes.sources);
+    methodAnalysis = applyRes.methodAnalysis;
+  } else if (queryLower.includes("sujet") || queryLower.includes("ordre du jour") || queryLower.includes("prochaine réunion")) {
     const suggestions = await prepareMeetingSuggestions();
     markdownContent = `### 📋 Données Entreprise : Proposition d'Ordre du Jour\n\nSur la base des données réelles de l'entreprise, voici les sujets critiques recommandés :\n\n`;
 
@@ -326,9 +311,9 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
     for (const inc of incidents) {
       markdownContent += `- **${inc.title}** (${inc.badgeText})\n`;
     }
-  } else if (isKnowledgeIntent) {
-    // Intention Connaissances / Méthodes / Normes
-    const kbRes = await searchKnowledgeBase(userQuery, { method: detectedMethod });
+  } else {
+    // Intention Connaissances / Recherche Hybride
+    const kbRes = await searchKnowledgeBase(userQuery);
 
     if (kbRes.chunks.length > 0) {
       sources.push(...kbRes.sources);
@@ -346,23 +331,6 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
     } else {
       responseType = "missing_info";
       markdownContent = `### 📚 Base de Connaissances QHSE\n\n⚠️ **Information non trouvée dans la Base de Connaissances**\n\nAucune norme, cours, méthode ou matrice Excel correspondant à **"${userQuery}"** n'a été trouvé dans vos connaissances actuellement importées.\n\n> *Vous pouvez ajouter des ressources (cours, normes ISO, matrices AMDEC/Excel) dans le socle d'ingestion sous **Paramètres > Base de Connaissances** (/parametres/knowledge).*`;
-    }
-  } else {
-    // Recherche globale hybride (Synthèse Opérationnelle + Connaissances si disponibles)
-    const kbRes = await searchKnowledgeBase(userQuery);
-    const cockpit = await getCockpitData();
-    const capas = await searchCAPA();
-    sources.push(...capas.slice(0, 3));
-
-    markdownContent = `### 🛡️ Données Entreprise : Synthèse Opérationnelle QHSE\n\n- **Incidents enregistrés :** ${cockpit.stats.totalIncidents}\n- **Incidents en cours :** ${cockpit.stats.incidentsEnCours}\n- **Permis de Travail actifs :** ${cockpit.permitsKpi.actifs}\n- **Documents GED en révision :** ${cockpit.gedKpi.enRevision}\n`;
-
-    if (kbRes.chunks.length > 0) {
-      sources.push(...kbRes.sources);
-      markdownContent += `\n### 📚 Connaissances QHSE Associées\n\n`;
-      for (const chunk of kbRes.chunks) {
-        const cit = await buildKnowledgeCitation(chunk);
-        markdownContent += `- **${cit.formattedCitation}**\n`;
-      }
     }
   }
 
@@ -386,7 +354,17 @@ export async function askQhseCopilot(userQuery: string): Promise<CopilotResponse
     responseType,
     markdownContent,
     sources,
+    methodAnalysis,
     suggestedActions: [
+      ...(methodAnalysis?.proposedActions && methodAnalysis.proposedActions.length > 0
+        ? [
+            {
+              label: "Créer les actions proposées en CAPA",
+              actionType: "create_capa_proposal" as const,
+              payload: { proposedActions: methodAnalysis.proposedActions },
+            },
+          ]
+        : []),
       { label: "Base de Connaissances", actionType: "open_href", targetHref: "/parametres/knowledge" },
       { label: "Préparer une Réunion", actionType: "add_to_agenda", targetHref: "/reunions" },
       { label: "Voir les CAPA", actionType: "open_href", targetHref: "/actions" },
