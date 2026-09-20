@@ -14,6 +14,7 @@ interface MessageItem {
   role: "user" | "assistant";
   content: string;
   sources?: CopilotSource[];
+  methodAnalysis?: any;
   timestamp: string;
 }
 
@@ -63,6 +64,7 @@ export function AssistantQhseClient() {
           role: "assistant",
           content: res.data.markdownContent,
           sources: res.data.sources,
+          methodAnalysis: res.data.methodAnalysis,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setMessages((prev) => [...prev, assistantMsg]);
@@ -73,6 +75,48 @@ export function AssistantQhseClient() {
       setErrorBanner("Erreur de connexion avec le service Copilote.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDownloadExcel(amdecData: any) {
+    try {
+      const res = await fetch("/api/export/amdec/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(amdecData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Excel");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `AMDEC_QHSE_${amdecData?.reference || "export"}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le fichier Excel AMDEC.");
+    }
+  }
+
+  async function handleDownloadWord(amdecData: any) {
+    try {
+      const res = await fetch("/api/export/amdec/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(amdecData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Word");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `AMDEC_QHSE_${amdecData?.reference || "rapport"}_${new Date().toISOString().split("T")[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le rapport Word AMDEC.");
     }
   }
 
@@ -182,6 +226,35 @@ export function AssistantQhseClient() {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions d'Export AMDEC (Excel & Word) */}
+              {msg.role === "assistant" && msg.methodAnalysis?.methodName === "AMDEC" && (
+                <div className="pt-3 border-t border-slate-800 mt-3 space-y-2">
+                  <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-emerald-400" />
+                    Livrables AMDEC Professionnels
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadExcel(msg.methodAnalysis?.amdecExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Télécharger la grille AMDEC Excel (.xlsx)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-950/50 gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadWord(msg.methodAnalysis?.amdecExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Générer la synthèse Word (.docx)
+                    </Button>
                   </div>
                 </div>
               )}

@@ -293,31 +293,114 @@ export async function handleMethodApply(
   let analysisText = "";
   const proposedActions: { title: string; description: string; priority?: string }[] = [];
 
-  if (method.name === "AMDEC") {
-    // Calcul déterministe AMDEC (F x G x D)
-    const freq = 3; // Fréquence moyenne (1-5)
-    const gravite = 4; // Gravité élevée (1-5)
-    const detect = 2; // Détectabilité bonne (1-5)
-    const ipr = freq * gravite * detect;
+  let amdecExportPayload: Record<string, unknown> | undefined = undefined;
 
-    analysisText = `##### 📐 Grille d'Évaluation AMDEC (Formule : IPR = F × G × D)\n\n`;
-    analysisText += `- **Fréquence (F) :** ${freq}/5 (Événement récurrent ou probable)\n`;
-    analysisText += `- **Gravité (G) :** ${gravite}/5 (Impact majeur sur la sécurité/environnement)\n`;
-    analysisText += `- **Détectabilité (D) :** ${detect}/5 (Détectable avant défaillance)\n`;
-    analysisText += `\n🎯 **Score IPR Calculé = ${ipr} / 125** ${ipr >= 20 ? "🔴 *(Seuil Critique Atteint ≥ 20)*" : "🟢 *(Risque Maîtrisé)*"}\n`;
+  if (method.name === "AMDEC") {
+    const qLower = userQuery.toLowerCase();
+
+    // Extraire d'éventuelles valeurs F, G, D fournies explicitement dans la requête (ex: F=3 G=4 D=2)
+    const fMatch = qLower.match(/f\s*=\s*(\d+)/i) || qLower.match(/fréquence\s*[:=]?\s*(\d+)/i);
+    const gMatch = qLower.match(/g\s*=\s*(\d+)/i) || qLower.match(/gravité\s*[:=]?\s*(\d+)/i);
+    const dMatch = qLower.match(/d\s*=\s*(\d+)/i) || qLower.match(/détectabilité\s*[:=]?\s*(\d+)/i);
+
+    const fVal = fMatch ? parseInt(fMatch[1], 10) : undefined;
+    const gVal = gMatch ? parseInt(gMatch[1], 10) : undefined;
+    const dVal = dMatch ? parseInt(dMatch[1], 10) : undefined;
+
+    const hasRatings = fVal !== undefined && gVal !== undefined && dVal !== undefined;
+    const isMissingData = !hasRatings;
+
+    // Contexte déduit
+    let activite = "Opérations et travaux QHSE";
+    let danger = "Chute de hauteur / Non-conformité opérationnelle";
+    let effet = "Blessure corporelle ou arrêt de travail";
+    let cause = "Non-respect des procédures / Équipement défaillant";
+
+    if (qLower.includes("hauteur") || qLower.includes("chute") || qLower.includes("échafaudage")) {
+      activite = "Travaux en hauteur et montage d'échafaudages";
+      danger = "Risque de chute de hauteur";
+      effet = "Traumatisme grave, fracture ou risque mortel";
+      cause = "Harnais non ancré / Absence de ligne de vie certifiée";
+    } else if (qLower.includes("incendie") || qLower.includes("feu") || qLower.includes("bouteille")) {
+      activite = "Stockage et manipulation de produits / gaz inflammables";
+      danger = "Départ de feu ou explosion";
+      effet = "Brûlures graves, dégâts matériels importants";
+      cause = "Absence d'extincteur / Zone de stockage non ventilée";
+    } else if (qLower.includes("chimique") || qLower.includes("produit")) {
+      activite = "Manipulation de substances chimiques";
+      danger = "Exposition ou déversement accidentel";
+      effet = "Brûlure chimique ou contamination environnementale";
+      cause = "Absence d'EPI adaptés / FDS non disponible";
+    }
+
+    const countAvailable = (activite ? 1 : 0) + (danger ? 1 : 0) + (hasRatings ? 3 : 0);
+    const countMissing = isMissingData ? 5 : 2; // F, G, D, responsable, échéance
+
+    analysisText = `### 📋 AMDEC Préparée\n\n`;
+    analysisText += `**Méthode :** AMDEC (Analyse des Modes de Défaillance, de leurs Effets et de leur Criticité)\n`;
+    analysisText += `**Source :** Cimteranga — Plan d'Actions QSE (6.2.2)\n`;
+    analysisText += `**Données disponibles :** ${countAvailable} élément(s) (${activite})\n`;
+    analysisText += `**Données manquantes :** ${countMissing} élément(s) (${isMissingData ? "Cotation F, G, D à renseigner" : "Responsable, Échéance"})\n\n`;
+
+    if (isMissingData) {
+      analysisText += `⚠️ **Information de cotation non fournie :** Pour construire l'AMDEC complète, il manque les éléments de cotation (*Fréquence F, Gravité G, Détectabilité D*).\n`;
+      analysisText += `Les valeurs de cotation n'ont pas été inventées et restent à renseigner.\n\n`;
+      analysisText += `Vous pouvez télécharger ci-dessous la **grille AMDEC Excel professionnelle** et le **rapport de synthèse Word** prêts à compléter.`;
+    } else {
+      const ipr = fVal * gVal * dVal;
+      analysisText += `##### 📐 Cotation Calculée (IPR = F × G × D)\n`;
+      analysisText += `- **Fréquence (F) :** ${fVal}/5\n`;
+      analysisText += `- **Gravité (G) :** ${gVal}/5\n`;
+      analysisText += `- **Détectabilité (D) :** ${dVal}/5\n`;
+      analysisText += `- 🎯 **IPR Calculé = ${ipr} / 125** ${ipr >= 20 ? "🔴 *(Seuil Critique ≥ 20)*" : "🟢 *(Risque Acceptable)*"}\n`;
+    }
 
     proposedActions.push(
       {
-        title: "Vérification des équipements de protection et consignes d'accès",
-        description: "Mettre en place une inspection systématique avant intervention et un permis de travail obligatoire.",
+        title: "Vérification préalable des équipements et consignes",
+        description: "Organiser une inspection avant intervention et vérifier l'ancrage des équipements.",
         priority: "Haute",
       },
       {
-        title: "Sensibilisation et causerie de sécurité",
-        description: "Organiser une causerie de 15 min sur le respect des consignes et la détection anticipée des anomalies.",
+        title: "Compléter la cotation F/G/D dans la grille AMDEC Excel",
+        description: "Renseigner la grille Excel pour valider le niveau IPR réel sur le terrain.",
         priority: "Moyenne",
       }
     );
+
+    amdecExportPayload = {
+      reference: `REF-2026-AMDEC-01`,
+      date: new Date().toISOString().split("T")[0],
+      entreprise: "QHSE Duo Sénégal",
+      processus: "Management QHSE / Prévention",
+      activite: activite,
+      version: "1.0",
+      preparePar: "Responsable QHSE",
+      validePar: "Direction QHSE / À valider",
+      sourceMethodo: "Cimteranga — Plan d'Actions QSE (6.2.2)",
+      sourceDocument: "Grille_Analyse_Risques_QSE_Cas2_SahelLogistique.xlsx",
+      sourcePlage: "Feuille 'Analyse Risques', Plage A1:P50",
+      isMissingData: isMissingData,
+      rows: [
+        {
+          num: 1,
+          processus: activite,
+          danger: danger,
+          effet: effet,
+          cause: cause,
+          mesures: "Inspection visuelle + consignes de sécurité",
+          f: fVal !== undefined ? fVal : "",
+          g: gVal !== undefined ? gVal : "",
+          d: dVal !== undefined ? dVal : "",
+          ipr: hasRatings ? fVal * gVal * dVal : undefined,
+          actionsProposees: "Installer les équipements de protection + formation obligatoire",
+          responsable: "À renseigner",
+          echeance: "À renseigner",
+          statut: "Proposée",
+          commentaires: "Échelle à confirmer selon la méthode de référence.",
+        },
+      ],
+    };
   } else if (method.name === "PESTEL") {
     analysisText = `##### 🌐 Matrice d'Analyse PESTEL (6 Piliers Stratégiques)\n\n`;
     analysisText += `- **P (Politique) :** Alignement avec les directives nationales QHSE et la politique de l'entreprise.\n`;
@@ -429,6 +512,7 @@ export async function handleMethodApply(
     companyDataUsed,
     proposedActions,
     realActionsCreated: false,
+    amdecExportData: amdecExportPayload,
   };
 
   return { markdownContent: markdown, sources, methodAnalysis };

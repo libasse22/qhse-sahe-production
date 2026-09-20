@@ -19,6 +19,7 @@ export interface MethodAnalysisStructure {
   analysisResult?: string;
   proposedActions?: { title: string; description: string; priority?: string }[];
   realActionsCreated: boolean;
+  amdecExportData?: Record<string, unknown>;
 }
 
 export interface CopilotResponse {
