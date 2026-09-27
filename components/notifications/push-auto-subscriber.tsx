@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { subscribePushDevice } from "@/lib/services/web-push.service";
+import { VAPID_PUBLIC_KEY } from "@/lib/constants/vapid";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -36,7 +37,7 @@ export function PushAutoSubscriber() {
 
     async function syncSubscription() {
       try {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        const vapidPublicKey = VAPID_PUBLIC_KEY;
         if (!vapidPublicKey) return;
 
         const reg = await navigator.serviceWorker.ready;

@@ -3,21 +3,15 @@
 import webpush from "web-push";
 import { createClient } from "@/lib/supabase/server";
 import type { ActionResult } from "@/lib/services/auth.service";
+import { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } from "@/lib/constants/vapid";
 
 // Configuration VAPID dynamique
 function ensureVapidConfig(): boolean {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT || "mailto:admin@qhse-duo-senegal.sn";
-
-  if (!publicKey || !privateKey) {
-    return false;
-  }
-
   try {
-    webpush.setVapidDetails(subject, publicKey, privateKey);
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
     return true;
-  } catch {
+  } catch (err) {
+    console.warn("Erreur d'initialisation VAPID :", err);
     return false;
   }
 }
@@ -224,4 +218,42 @@ export async function sendWebPushToCompany(
     console.warn("Erreur lors de l'envoi Web Push à l'entreprise :", err);
   }
 }
+
+/**
+ * Envoie une notification Web Push de TEST réelle à l'utilisateur connecté sur son téléphone/appareil.
+ */
+export async function sendTestPushToCurrentUser(): Promise<ActionResult> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return { error: "Vous devez être connecté pour tester." };
+
+    const { data: subscriptions } = await supabase
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", user.id);
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return {
+        error:
+          "Aucun téléphone/appareil enregistré pour votre compte. Veuillez cliquer sur 'Activer les notifications' sur cet appareil.",
+      };
+    }
+
+    await sendWebPushToUser(user.id, {
+      title: "🚨 Test Notification PWA — QHSE Duo",
+      body: "Félicitations ! Les notifications Push sont 100% actives et configurées sur votre téléphone.",
+      url: "/dashboard",
+      tag: `test-push-${Date.now()}`,
+    });
+
+    return { error: null };
+  } catch (err: any) {
+    return { error: err.message || "Échec de l'envoi de la notification de test." };
+  }
+}
+
 

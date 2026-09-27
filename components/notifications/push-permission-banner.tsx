@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, ShieldAlert, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { subscribePushDevice } from "@/lib/services/web-push.service";
+import { VAPID_PUBLIC_KEY } from "@/lib/constants/vapid";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -22,13 +23,21 @@ export function PushPermissionBanner() {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isIosSafari, setIsIosSafari] = useState(false);
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("Notification" in window) ||
-      !("serviceWorker" in navigator)
-    ) {
+    if (typeof window === "undefined") return;
+
+    // Détection iOS Safari non-standalone
+    const ua = window.navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isStandalone = (window.navigator as any).standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+
+    if (isIos && !isStandalone) {
+      setIsIosSafari(true);
+    }
+
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       return;
     }
 
@@ -43,7 +52,6 @@ export function PushPermissionBanner() {
       return;
     }
 
-    // Afficher la bannière après 2 secondes pour ne pas surcharger l'utilisateur au chargement
     const timer = setTimeout(() => {
       setVisible(true);
     }, 2000);
@@ -56,7 +64,7 @@ export function PushPermissionBanner() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        const vapidPublicKey = VAPID_PUBLIC_KEY;
         if (vapidPublicKey && "serviceWorker" in navigator) {
           const reg = await navigator.serviceWorker.ready;
           let sub = await reg.pushManager.getSubscription();

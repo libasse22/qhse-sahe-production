@@ -8,7 +8,9 @@ import {
   getPushSubscriptionStatus,
   subscribePushDevice,
   unsubscribePushDevice,
+  sendTestPushToCurrentUser,
 } from "@/lib/services/web-push.service";
+import { VAPID_PUBLIC_KEY } from "@/lib/constants/vapid";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -26,9 +28,11 @@ export function PushSubscriptionToggle() {
   const [permission, setPermission] = useState<string>("default");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [testing, setTesting] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -62,8 +66,27 @@ export function PushSubscriptionToggle() {
     }
   }, []);
 
+  async function handleSendTestPush() {
+    setTesting(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await sendTestPushToCurrentUser();
+      if (res.error) {
+        setErrorMsg(res.error);
+      } else {
+        setSuccessMsg("Notification de test envoyée par le serveur ! Vérifiez l'écran de votre téléphone.");
+      }
+    } catch {
+      setErrorMsg("Erreur lors de l'envoi du test Push.");
+    } finally {
+      setTesting(false);
+    }
+  }
+
   async function handleToggleSubscription() {
     setErrorMsg(null);
+    setSuccessMsg(null);
     setLoading(true);
 
     try {
@@ -89,7 +112,7 @@ export function PushSubscriptionToggle() {
           throw new Error("L'autorisation de notification a été refusée.");
         }
 
-        const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+        const vapidPublicKey = VAPID_PUBLIC_KEY;
         if (!vapidPublicKey) {
           throw new Error("Clé VAPID publique non configurée sur le serveur.");
         }
@@ -122,6 +145,7 @@ export function PushSubscriptionToggle() {
 
         if (res.error) throw new Error(res.error);
         setIsSubscribed(true);
+        setSuccessMsg("Votre téléphone est désormais enregistré pour recevoir les notifications !");
       }
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Erreur lors de la mise à jour des notifications.");
@@ -188,30 +212,52 @@ export function PushSubscriptionToggle() {
         </div>
       )}
 
-      <div className="pt-1 flex items-center justify-between border-t border-border">
+      {successMsg && (
+        <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/20 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {successMsg}
+        </div>
+      )}
+
+      <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 border-t border-border">
         <span className="text-muted-foreground">
           {isSubscribed
-            ? "Vos périphériques recevront les alertes en direct."
+            ? "Votre téléphone recevra les alertes en direct."
             : "Activez pour recevoir les alertes sur cet appareil."}
         </span>
 
-        <Button
-          onClick={handleToggleSubscription}
-          disabled={loading || !isSupported || (isIos && !isStandalone && permission !== "granted")}
-          variant={isSubscribed ? "outline" : "default"}
-          size="sm"
-          className="gap-2 font-medium"
-        >
-          {isSubscribed ? (
-            <>
-              <BellOff className="h-3.5 w-3.5" /> Désactiver
-            </>
-          ) : (
-            <>
-              <Bell className="h-3.5 w-3.5" /> Activer les notifications
-            </>
+        <div className="flex items-center gap-2">
+          {isSubscribed && (
+            <Button
+              onClick={handleSendTestPush}
+              disabled={testing}
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              {testing ? "Envoi..." : "Tester sur mon téléphone 📱"}
+            </Button>
           )}
-        </Button>
+
+          <Button
+            onClick={handleToggleSubscription}
+            disabled={loading || !isSupported || (isIos && !isStandalone && permission !== "granted")}
+            variant={isSubscribed ? "outline" : "default"}
+            size="sm"
+            className="gap-2 font-medium"
+          >
+            {isSubscribed ? (
+              <>
+                <BellOff className="h-3.5 w-3.5" /> Désactiver
+              </>
+            ) : (
+              <>
+                <Bell className="h-3.5 w-3.5" /> Activer les notifications
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
