@@ -83,7 +83,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Notifications Push Web (Événement Push Réseau)
+// Notifications Push Web (Événement Push Réseau en Arrière-Plan)
 self.addEventListener("push", (event) => {
   let data = {
     title: "🚨 Alerte QHSE Duo Sénégal",
@@ -105,16 +105,19 @@ self.addEventListener("push", (event) => {
     body: data.body || "Nouveau message ou publication",
     icon: data.icon || "/icons/icon-192x192.png",
     badge: data.badge || "/icons/icon-192x192.png",
-    vibrate: [200, 100, 200],
-    tag: data.tag || `qhse-notif-${Date.now()}`,
+    vibrate: [200, 100, 200, 100, 200],
+    tag: data.tag || `qhse-push-${Date.now()}`,
+    renotify: true,
+    requireInteraction: false,
+    timestamp: Date.now(),
     data: { url: data.url || "/incidents" },
     actions: [
-      { action: "open", title: "Consulter" },
-      { action: "close", title: "Fermer" },
+      { action: "open", title: "Consulter 👁️" },
+      { action: "close", title: "Fermer ✖️" },
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(data.title || "Notification", options));
+  event.waitUntil(self.registration.showNotification(data.title || "Notification QHSE", options));
 });
 
 // Écouteur de messages postMessage envoyés par le client (Test Push & Realtime)
@@ -126,15 +129,17 @@ self.addEventListener("message", (event) => {
       body: data.body || "Nouveau message ou publication",
       icon: data.icon || "/icons/icon-192x192.png",
       badge: data.badge || "/icons/icon-192x192.png",
-      vibrate: [200, 100, 200],
+      vibrate: [200, 100, 200, 100, 200],
       tag: data.tag || `qhse-postmsg-${Date.now()}`,
+      renotify: true,
+      timestamp: Date.now(),
       data: { url: data.url || "/" },
     };
     event.waitUntil(self.registration.showNotification(title, options));
   }
 });
 
-// Clic sur Notification Push
+// Clic sur Notification Push (Application Fermée ou Réduite)
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
@@ -144,11 +149,16 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      // Si un onglet de l'application est déjà ouvert, le réactiver et naviguer
       for (const client of windowClients) {
-        if (client.url.includes(targetUrl) && "focus" in client) {
+        if ("focus" in client) {
+          if ("navigate" in client) {
+            client.navigate(targetUrl);
+          }
           return client.focus();
         }
       }
+      // Sinon, ouvrir une nouvelle fenêtre/onglet PWA
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }

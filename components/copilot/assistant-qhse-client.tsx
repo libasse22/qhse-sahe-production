@@ -120,6 +120,174 @@ export function AssistantQhseClient() {
     }
   }
 
+  async function handleDownloadPestelExcel(pestelData: any) {
+    try {
+      const res = await fetch("/api/export/pestel/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pestelData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Excel PESTEL");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PESTEL_QHSE_${pestelData?.reference || "export"}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le fichier Excel PESTEL.");
+    }
+  }
+
+  async function handleDownloadPestelWord(pestelData: any) {
+    try {
+      const res = await fetch("/api/export/pestel/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pestelData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Word PESTEL");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PESTEL_QHSE_${pestelData?.reference || "rapport"}_${new Date().toISOString().split("T")[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le rapport Word PESTEL.");
+    }
+  }
+
+  async function handleDownloadSwotExcel(swotData: any) {
+    try {
+      const res = await fetch("/api/export/swot/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(swotData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Excel SWOT");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SWOT_QHSE_${swotData?.reference || "export"}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le fichier Excel SWOT.");
+    }
+  }
+
+  async function handleDownloadSwotWord(swotData: any) {
+    try {
+      const res = await fetch("/api/export/swot/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(swotData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Word SWOT");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SWOT_QHSE_${swotData?.reference || "rapport"}_${new Date().toISOString().split("T")[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le rapport Word SWOT.");
+    }
+  }
+
+  async function handleDownloadFiveWhyExcel(fiveWhyData: any) {
+    try {
+      const res = await fetch("/api/export/five-why/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fiveWhyData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Excel 5 Why");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `5WHY_QHSE_${fiveWhyData?.reference || "export"}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le fichier Excel 5 Why.");
+    }
+  }
+
+  async function handleDownloadFiveWhyWord(fiveWhyData: any) {
+    try {
+      const res = await fetch("/api/export/five-why/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fiveWhyData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Word 5 Why");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `5WHY_QHSE_${fiveWhyData?.reference || "rapport"}_${new Date().toISOString().split("T")[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le rapport Word 5 Why.");
+    }
+  }
+
+  async function handleDownloadIshikawaExcel(ishikawaData: any) {
+    try {
+      const res = await fetch("/api/export/ishikawa/excel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ishikawaData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Excel Ishikawa");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ISHIKAWA_QHSE_${ishikawaData?.reference || "export"}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le fichier Excel Ishikawa.");
+    }
+  }
+
+  async function handleDownloadIshikawaWord(ishikawaData: any) {
+    try {
+      const res = await fetch("/api/export/ishikawa/word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ishikawaData || {}),
+      });
+      if (!res.ok) throw new Error("Erreur export Word Ishikawa");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ISHIKAWA_QHSE_${ishikawaData?.reference || "rapport"}_${new Date().toISOString().split("T")[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch {
+      alert("Impossible de télécharger le rapport Word Ishikawa.");
+    }
+  }
+
   function handleCopy(id: string, text: string) {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -251,6 +419,122 @@ export function AssistantQhseClient() {
                       variant="outline"
                       className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-950/50 gap-1.5 text-xs font-semibold"
                       onClick={() => handleDownloadWord(msg.methodAnalysis?.amdecExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Générer la synthèse Word (.docx)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions d'Export PESTEL (Excel & Word) */}
+              {msg.role === "assistant" && msg.methodAnalysis?.methodName === "PESTEL" && (
+                <div className="pt-3 border-t border-slate-800 mt-3 space-y-2">
+                  <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-emerald-400" />
+                    Livrables PESTEL Professionnels
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadPestelExcel(msg.methodAnalysis?.pestelExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Télécharger la grille PESTEL Excel (.xlsx)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-950/50 gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadPestelWord(msg.methodAnalysis?.pestelExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Générer la synthèse Word (.docx)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions d'Export SWOT (Excel & Word) */}
+              {msg.role === "assistant" && (msg.methodAnalysis?.methodName === "SWOT" || Boolean(msg.methodAnalysis?.swotExportData)) && (
+                <div className="pt-3 border-t border-slate-800 mt-3 space-y-2">
+                  <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-emerald-400" />
+                    Livrables SWOT Professionnels
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadSwotExcel(msg.methodAnalysis?.swotExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Télécharger la grille SWOT Excel (.xlsx)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-950/50 gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadSwotWord(msg.methodAnalysis?.swotExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Générer la synthèse Word (.docx)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions d'Export 5 WHY (Excel & Word) */}
+              {msg.role === "assistant" && (msg.methodAnalysis?.methodName === "5 Pourquoi" || Boolean(msg.methodAnalysis?.fiveWhyExportData)) && (
+                <div className="pt-3 border-t border-slate-800 mt-3 space-y-2">
+                  <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-emerald-400" />
+                    Livrables 5 Pourquoi (5 Why) Professionnels
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadFiveWhyExcel(msg.methodAnalysis?.fiveWhyExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Télécharger la grille 5 Why Excel (.xlsx)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-950/50 gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadFiveWhyWord(msg.methodAnalysis?.fiveWhyExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Générer le rapport Word (.docx)
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions d'Export ISHIKAWA (Excel & Word) */}
+              {msg.role === "assistant" && (msg.methodAnalysis?.methodName === "Ishikawa" || Boolean(msg.methodAnalysis?.ishikawaExportData)) && (
+                <div className="pt-3 border-t border-slate-800 mt-3 space-y-2">
+                  <div className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-emerald-400" />
+                    Livrables Ishikawa (5M) Professionnels
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadIshikawaExcel(msg.methodAnalysis?.ishikawaExportData)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Télécharger la matrice Ishikawa Excel (.xlsx)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-indigo-500/50 text-indigo-300 hover:bg-indigo-950/50 gap-1.5 text-xs font-semibold"
+                      onClick={() => handleDownloadIshikawaWord(msg.methodAnalysis?.ishikawaExportData)}
                     >
                       <FileText className="h-3.5 w-3.5" />
                       Générer la synthèse Word (.docx)

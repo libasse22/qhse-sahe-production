@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import { PushNotificationListener, showNativePush } from "@/components/notifications/push-notification-listener";
+import { PushAutoSubscriber } from "@/components/notifications/push-auto-subscriber";
+import { PushPermissionBanner } from "@/components/notifications/push-permission-banner";
 
 export function PwaRegister() {
   const [isOffline, setIsOffline] = useState(false);
@@ -68,6 +70,8 @@ export function PwaRegister() {
   return (
     <>
       <PushNotificationListener />
+      <PushAutoSubscriber />
+      <PushPermissionBanner />
 
       {/* Banner Mode Hors-Ligne */}
       {isOffline && (

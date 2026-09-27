@@ -57,7 +57,7 @@ export const SUPPORTED_METHODS: MethodDefinition[] = [
   },
   {
     name: "5 Pourquoi",
-    aliases: ["5 pourquoi", "5 whys", "cinq pourquoi"],
+    aliases: ["5 pourquoi", "5 whys", "5 why", "five why", "5why", "cinq pourquoi"],
     domain: "quality",
     description: "Analyse itérative des causes racines d'un incident ou non-conformité.",
   },
@@ -294,6 +294,10 @@ export async function handleMethodApply(
   const proposedActions: { title: string; description: string; priority?: string }[] = [];
 
   let amdecExportPayload: Record<string, unknown> | undefined = undefined;
+  let pestelExportPayload: Record<string, unknown> | undefined = undefined;
+  let swotExportPayload: Record<string, unknown> | undefined = undefined;
+  let fiveWhyExportPayload: Record<string, unknown> | undefined = undefined;
+  let ishikawaExportPayload: Record<string, unknown> | undefined = undefined;
 
   if (method.name === "AMDEC") {
     const qLower = userQuery.toLowerCase();
@@ -417,6 +421,29 @@ export async function handleMethodApply(
         priority: "Haute",
       }
     );
+
+    pestelExportPayload = {
+      reference: `REF-2026-PESTEL-01`,
+      date: new Date().toISOString().split("T")[0],
+      entreprise: "QHSE Duo Sénégal",
+      domaine: "Stratégie & Contexte QHSE",
+      processus: "Management des Risques & Enjeux",
+      perimetre: "Global Entreprise",
+      version: "1.0",
+      preparePar: "Responsable QHSE",
+      validePar: "Direction QHSE / À valider",
+      sourceMethodo: "Cimteranga — Enjeux & Contexte Stratégique (4.1)",
+      sourceDocument: "ISM_M2QHSE_REVISION_MODULE SMI.pdf",
+      isMissingData: false,
+      rows: [
+        { num: 1, axe: "Politique", facteur: "Directives nationales et politiques SSE", situationActuelle: "Conforme", opportunite: "Valorisation RSE & Certification ISO", menace: "Évolution réglementaire stricte", impact: "Élevé", commentaire: "À suivre régulièrement", source: "Code du Travail Sénégal" },
+        { num: 2, axe: "Économique", facteur: "Coûts de non-qualité et budget QHSE", situationActuelle: "Sous contrôle", opportunite: "Réduction du coût des incidents", menace: "Hausse des coûts des EPI/équipements", impact: "Moyen", commentaire: "Budget annuel à consolider", source: "Plan d'actions QSE" },
+        { num: 3, axe: "Socioculturel", facteur: "Culture sécurité & climat social", situationActuelle: "Engagement moyen", opportunite: "Sensibilisation et quart d'heure sécurité", menace: "Résistance au changement", impact: "Élevé", commentaire: "Renforcer les formations", source: "Bilan Annuel SSE" },
+        { num: 4, axe: "Technologique", facteur: "Digitalisation & outils Copilote QHSE", situationActuelle: "Déploiement en cours", opportunite: "Automatisation de la conformité", menace: "Non-adoption de la plateforme", impact: "Moyen", commentaire: "Formation des superviseurs", source: "Copilote QHSE" },
+        { num: 5, axe: "Écologique", facteur: "Gestion des déchets & rejets", situationActuelle: "Plan de tri actif", opportunite: "Éco-gestion et valorisation", menace: "Pollution accidentelle", impact: "Élevé", commentaire: "Audits de conformité 14001", source: "Manuel Environnement" },
+        { num: 6, axe: "Légal", facteur: "Conformité réglementaire et normes ISO", situationActuelle: "Veille légale active", opportunite: "Certification SMI intégrée", menace: "Sanctions ou mises en demeure", impact: "Critique", commentaire: "Mise à jour du registre légal", source: "Registre de Conformité" }
+      ],
+    };
   } else if (method.name === "SWOT") {
     analysisText = `##### ⚖️ Matrice d'Analyse SWOT (Forces / Faiblesses / Opportunités / Menaces)\n\n`;
     analysisText += `- **Forces (F) :** Engagement de la direction, procédures GED formalisées et Copilote QHSE actif.\n`;
@@ -431,13 +458,41 @@ export async function handleMethodApply(
         priority: "Haute",
       }
     );
+
+    swotExportPayload = {
+      reference: `REF-2026-SWOT-01`,
+      date: new Date().toISOString().split("T")[0],
+      entreprise: "QHSE Duo Sénégal",
+      activite: "Management Systémique QSE",
+      perimetre: "Global Entreprise",
+      version: "1.0",
+      preparePar: "Responsable QHSE",
+      validePar: "Direction QHSE / À valider",
+      sourceMethodo: "Référentiel Système de Management Intégré (SMI)",
+      sourceDocument: "ISM_M2QHSE_REVISION_MODULE SMI.pdf",
+      isMissingData: false,
+      items: [
+        { type: "Force", description: "Engagement de la direction & Procédures GED formalisées", impact: "Élevé", priorite: "Haute", source: "Manuel SMI" },
+        { type: "Force", description: "Copilote QHSE actif et intégration de la Base de Connaissances", impact: "Élevé", priorite: "Haute", source: "Copilote System" },
+        { type: "Faiblesse", description: "Délais de clôture de certaines actions correctives (CAPA)", impact: "Moyen", priorite: "Moyenne", source: "Registre CAPA" },
+        { type: "Faiblesse", description: "Suivi du calendrier d'étalonnage des équipements de mesure", impact: "Moyen", priorite: "Moyenne", source: "Registre Équipements" },
+        { type: "Opportunité", description: "Certification intégrée ISO 9001 / 14001 / 45001", impact: "Critique", priorite: "Haute", source: "Revue de Direction" },
+        { type: "Opportunité", description: "Automatisation des alertes et tableaux de bord temps réel", impact: "Élevé", priorite: "Haute", source: "Cockpit QHSE" },
+        { type: "Menace", description: "Évolution rapide des exigences réglementaires et normatives", impact: "Élevé", priorite: "Haute", source: "Veille Réglementaire" },
+        { type: "Menace", description: "Risques d'accidents du travail sur chantiers temporaires", impact: "Critique", priorite: "Haute", source: "Analyse des Incidents" }
+      ],
+    };
   } else if (method.name === "5 Pourquoi") {
+    const problemStatement = companyDataUsed.length > 0 
+      ? companyDataUsed[0] 
+      : userQuery.length > 15 ? userQuery : "Anomalie ou non-conformité opérationnelle constatée";
+
     analysisText = `##### 🔍 Analyse des Causes Racines — 5 Pourquoi\n\n`;
     analysisText += `1. **Pourquoi 1 ?** L'anomalie s'est produite lors de la séance de travail.\n`;
     analysisText += `2. **Pourquoi 2 ?** La consigne spécifique n'a pas été communiquée à temps à l'opérateur.\n`;
     analysisText += `3. **Pourquoi 3 ?** La fiche de poste et le permis n'étaient pas affichés sur la zone.\n`;
-    analysisText += `4. **Pourquoi 4 ?** Absence de contrôle préalable de la zone avant démarrage des travaux.\n`;
-    analysisText += `5. **Pourquoi 5 (Cause Racine) ?** **Procédure de validation du Permis de Travail (PtW) non systématique.**\n`;
+    analysisText += `4. **Pourquoi 4 (Hypothèse) ?** Absence de contrôle préalable de la zone avant démarrage des travaux.\n`;
+    analysisText += `5. **Pourquoi 5 (Cause Racine Candidate) ?** **Procédure de validation du Permis de Travail (PtW) non systématique.**\n`;
 
     proposedActions.push(
       {
@@ -446,7 +501,40 @@ export async function handleMethodApply(
         priority: "Critique",
       }
     );
+
+    fiveWhyExportPayload = {
+      reference: `REF-2026-5WHY-01`,
+      date: new Date().toISOString().split("T")[0],
+      entreprise: "QHSE Duo Sénégal",
+      processus: "Management QHSE / Analyse d'Incident",
+      activite: "Opérations et travaux QHSE",
+      problemStatement: problemStatement,
+      context: userQuery,
+      whySteps: [
+        { stepNum: 1, question: "Pourquoi le problème s'est-il produit ?", answer: "La consigne spécifique n'a pas été communiquée à temps à l'opérateur.", status: "confirmed", source: "Constat terrain" },
+        { stepNum: 2, question: "Pourquoi la consigne n'a-t-elle pas été communiquée ?", answer: "La fiche de poste et le permis n'étaient pas affichés sur la zone.", status: "confirmed", source: "Inspection visuelle" },
+        { stepNum: 3, question: "Pourquoi le permis n'était-il pas affiché ?", answer: "Absence de contrôle préalable de la zone avant démarrage des travaux.", status: "hypothesis", source: "Hypothèse de travail" },
+        { stepNum: 4, question: "Pourquoi le contrôle préalable n'a-t-il pas eu lieu ?", answer: "Information non renseignée dans le rapport initial", status: "missing_info", source: "À compléter" },
+        { stepNum: 5, question: "Pourquoi la règle n'a-t-elle pas été vérifiée par la hiérarchie ?", answer: "Information non renseignée dans le rapport initial", status: "missing_info", source: "À compléter" },
+      ],
+      confirmedFacts: ["Consigne spécifique non communiquée", "Permis non affiché sur zone"],
+      hypotheses: ["Absence de contrôle préalable de la zone"],
+      missingInformation: ["Motif exact du non-contrôle avant démarrage (Niveau 4 & 5 à valider)"],
+      rootCauseCandidate: "Procédure de validation du Permis de Travail (PtW) non systématique avant intervention.",
+      correctiveDirection: "Rendre la validation du Permis de Travail bloquante sur l'application mobile.",
+      preventiveDirection: "Vérification systématique de l'affichage des consignes lors des causeries sécurité.",
+      version: "1.0",
+      preparePar: "Responsable QHSE",
+      validePar: "Direction QHSE / À valider",
+      sourceMethodo: "Cimteranga — Analyse des Causes Racines",
+      sourceDocument: chunks[0]?.title || "ISM_M2QHSE_REVISION_MODULE SMI.pdf",
+      isMissingData: true,
+    };
   } else if (method.name === "Ishikawa") {
+    const problemStatement = companyDataUsed.length > 0 
+      ? companyDataUsed[0] 
+      : userQuery.length > 15 ? userQuery : "Défaut de conformité ou dysfonctionnement opérationnel";
+
     analysisText = `##### 🐟 Diagramme Cause-Effet — Les 5M\n\n`;
     analysisText += `- **Matière :** Qualité des intrants et consommables de sécurité.\n`;
     analysisText += `- **Matériel :** Vérification périodique de l'outillage et équipements.\n`;
@@ -461,6 +549,31 @@ export async function handleMethodApply(
         priority: "Haute",
       }
     );
+
+    ishikawaExportPayload = {
+      reference: `REF-2026-ISHIKAWA-01`,
+      date: new Date().toISOString().split("T")[0],
+      entreprise: "QHSE Duo Sénégal",
+      processus: "Management Intégré QSE",
+      activite: "Opérations et travaux QHSE",
+      problemStatement: problemStatement,
+      version: "1.0",
+      preparePar: "Responsable QHSE",
+      validePar: "Direction QHSE / À valider",
+      sourceMethodo: "Méthode des 5M (Ishikawa — Diagramme Cause-Effet)",
+      sourceDocument: chunks[0]?.title || "ISM_M2QHSE_REVISION_MODULE SMI.pdf",
+      isMissingData: false,
+      causes: [
+        { category: "Matière", cause: "Qualité des intrants et consommables de sécurité", status: "confirmé", justification: "EPI et matériel conformes aux normes", source: "Registre Stock & EPI" },
+        { category: "Matériel", cause: "Vérification périodique de l'outillage et équipements", status: "à_vérifier", justification: "Date du dernier étalonnage à valider sur le terrain", source: "Registre Équipements" },
+        { category: "Méthode", cause: "Respect du mode opératoire GED et des fiches de processus", status: "confirmé", justification: "Procédure opérationnelle documentée", source: "Manuel SMI" },
+        { category: "Main-d'œuvre", cause: "Niveau de formation, causeries sécurité et habilitations", status: "hypothèse", justification: "Nombre de causeries récentes à vérifier", source: "Bilan Formation" },
+        { category: "Milieu", cause: "Conditions environnementales et aménagement de la zone", status: "confirmé", justification: "Éclairage et accès conformes lors de l'inspection", source: "Rapport d'Inspection" },
+      ],
+      missingInformation: ["Validation de la date d'étalonnage exacte des équipements (Matériel)"],
+      synthesis: "L'analyse montre que la Méthode et le Milieu sont maîtrisés, mais les axes Matériel et Main-d'œuvre nécessitent des vérifications complémentaires.",
+      correctiveDirection: "Programmer un audit ciblé des 5M sur le secteur concerné et vérifier l'outillage.",
+    };
   } else {
     analysisText = `##### 📊 Analyse Guidée — ${method.name}\n\n`;
     analysisText += `L'analyse de votre demande selon la méthode **${method.name}** a été réalisée en combinant les règles de votre Base de Connaissances et les données réelles sélectionnées.\n`;
@@ -474,7 +587,7 @@ export async function handleMethodApply(
     );
   }
 
-  // Assemblage du Markdown final respectant strictement Étape 6
+  // Assemblage du Markdown final respectant strictly Étape 6
   let markdown = `### 🛠️ APPLICATION GUIDÉE : ${method.name.toUpperCase()}\n\n`;
 
   markdown += `#### 📚 1. SOURCE MÉTHODE (Knowledge Base)\n`;
@@ -513,6 +626,10 @@ export async function handleMethodApply(
     proposedActions,
     realActionsCreated: false,
     amdecExportData: amdecExportPayload,
+    pestelExportData: pestelExportPayload,
+    swotExportData: swotExportPayload,
+    fiveWhyExportData: fiveWhyExportPayload,
+    ishikawaExportData: ishikawaExportPayload,
   };
 
   return { markdownContent: markdown, sources, methodAnalysis };

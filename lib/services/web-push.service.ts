@@ -152,7 +152,10 @@ export async function sendWebPushToUser(
         };
 
         try {
-          await webpush.sendNotification(pushSubscription, pushPayload);
+          await webpush.sendNotification(pushSubscription, pushPayload, {
+            TTL: 86400,
+            urgency: "high",
+          });
         } catch (err: any) {
           // Si l'abonnement a expiré ou été révoqué par le navigateur (HTTP 404 ou 410)
           if (err?.statusCode === 404 || err?.statusCode === 410) {
@@ -170,3 +173,55 @@ export async function sendWebPushToUser(
     console.warn("Avertissement : échec de l'envoi de la notification Web Push :", err);
   }
 }
+
+/**
+ * Envoie une notification Web Push native à plusieurs utilisateurs simultanément.
+ */
+export async function sendWebPushToUsers(
+  userIds: string[],
+  payload: {
+    title: string;
+    body: string;
+    url: string;
+    tag?: string;
+  }
+): Promise<void> {
+  if (!userIds || userIds.length === 0) return;
+  const uniqueIds = Array.from(new Set(userIds));
+  await Promise.all(uniqueIds.map((id) => sendWebPushToUser(id, payload)));
+}
+
+/**
+ * Envoie une notification Web Push à tous les membres d'une entreprise (ou tous les membres actifs).
+ */
+export async function sendWebPushToCompany(
+  companyId: string | null | undefined,
+  payload: {
+    title: string;
+    body: string;
+    url: string;
+    tag?: string;
+  },
+  excludeUserId?: string
+): Promise<void> {
+  try {
+    const supabase = await createClient();
+    let query = supabase.from("profiles").select("id").eq("status", "active");
+
+    if (companyId) {
+      query = query.eq("company_id", companyId);
+    }
+    if (excludeUserId) {
+      query = query.neq("id", excludeUserId);
+    }
+
+    const { data: users } = await query;
+    if (users && users.length > 0) {
+      const userIds = users.map((u) => u.id);
+      await sendWebPushToUsers(userIds, payload);
+    }
+  } catch (err) {
+    console.warn("Erreur lors de l'envoi Web Push à l'entreprise :", err);
+  }
+}
+

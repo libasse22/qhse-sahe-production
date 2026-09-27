@@ -20,6 +20,10 @@ export interface MethodAnalysisStructure {
   proposedActions?: { title: string; description: string; priority?: string }[];
   realActionsCreated: boolean;
   amdecExportData?: Record<string, unknown>;
+  pestelExportData?: Record<string, unknown>;
+  swotExportData?: Record<string, unknown>;
+  fiveWhyExportData?: Record<string, unknown>;
+  ishikawaExportData?: Record<string, unknown>;
 }
 
 export interface CopilotResponse {
