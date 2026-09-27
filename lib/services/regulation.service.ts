@@ -136,15 +136,17 @@ export async function createRegulation(formData: FormData): Promise<CreateRegula
       })),
     );
 
-    // Expédition Web Push arrière-plan non-bloquante
-    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
-    for (const u of activeUsers as any[]) {
-      void sendWebPushToUser(u.id, {
+    // Expédition Web Push garantie à tous les membres de l'entreprise
+    try {
+      const { sendWebPushToCompany } = await import("@/lib/services/web-push.service");
+      await sendWebPushToCompany(null, {
         title: "📄 Nouveau règlement intérieur publié",
         body: `Titre : ${title.trim()} (v${nextVersion})`,
         url: "/reglement-interieur",
         tag: `reg-${(data as any).id}`,
-      });
+      }, user.id);
+    } catch (err) {
+      console.warn("Échec Web Push règlement intérieur :", err);
     }
   }
 

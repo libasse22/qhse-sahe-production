@@ -181,15 +181,17 @@ export async function createPolicy(formData: FormData): Promise<CreatePolicyResu
       })),
     );
 
-    // Expédition Web Push arrière-plan non-bloquante
-    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
-    for (const u of activeUsers as any[]) {
-      void sendWebPushToUser(u.id, {
+    // Expédition Web Push garantie à tous les membres de l'entreprise
+    try {
+      const { sendWebPushToCompany } = await import("@/lib/services/web-push.service");
+      await sendWebPushToCompany(null, {
         title: "📢 Nouvelle politique qualité publiée",
         body: `Titre : ${title} (v${nextVersion})`,
         url: "/politique",
         tag: `policy-${data.id}`,
-      });
+      }, user.id);
+    } catch (err) {
+      console.warn("Échec Web Push politique :", err);
     }
   }
 

@@ -358,18 +358,18 @@ export async function createAction(
     comment: "Création initiale de l'action CAPA",
   });
 
-  // Web Push non-bloquant
+  // Web Push garanti vers le responsable
   if (responsableId) {
     try {
       const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
-      void sendWebPushToUser(responsableId, {
+      await sendWebPushToUser(responsableId, {
         title: `🛠️ CAPA ${newRow.code_reference || ""} assignée`,
         body: description.slice(0, 100),
         url: "/actions",
         tag: `capa-${newRow.id}`,
       });
-    } catch {
-      // Ignoré
+    } catch (err) {
+      console.warn("Échec Web Push action :", err);
     }
   }
 

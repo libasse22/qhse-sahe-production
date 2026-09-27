@@ -200,27 +200,27 @@ export async function syncQueuedIncident(payload: QueuedIncidentPayload): Promis
     return { error: "Impossible d'enregistrer le signalement." };
   }
 
-  // Expédition Web Push arrière-plan non-bloquante aux utilisateurs
+  // Expédition Web Push garantie aux utilisateurs de l'entreprise
   try {
-    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
-    const { data: activeUsers } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("id")
-      .eq("status", "active")
-      .neq("id", user.id);
+      .select("company_id")
+      .eq("id", user.id)
+      .single();
 
-    if (activeUsers) {
-      for (const u of activeUsers as any[]) {
-        void sendWebPushToUser(u.id, {
-          title: "🚨 Nouvel incident signalé",
-          body: `Lieu : ${payload.location || "Non précisé"} (Gravité : ${payload.severity})`,
-          url: `/incidents/${data.id}`,
-          tag: `inc-${data.id}`,
-        });
-      }
-    }
-  } catch {
-    // Ignoré si échec Web Push : la création de l'incident est garantie.
+    const { sendWebPushToCompany } = await import("@/lib/services/web-push.service");
+    await sendWebPushToCompany(
+      profile?.company_id,
+      {
+        title: "🚨 Nouvel incident signalé",
+        body: `Lieu : ${payload.location || "Non précisé"} (Gravité : ${payload.severity})`,
+        url: `/incidents/${data.id}`,
+        tag: `inc-${data.id}`,
+      },
+      user.id
+    );
+  } catch (err) {
+    console.warn("Échec d'envoi Web Push incident :", err);
   }
 
   revalidatePath("/ouvrier/mes-declarations");

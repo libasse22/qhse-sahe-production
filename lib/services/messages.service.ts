@@ -182,15 +182,18 @@ export async function sendMessage(
       })),
     );
 
-    // Expédition Web Push arrière-plan non-bloquante vers les participants
-    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
-    for (const p of participants as any[]) {
-      void sendWebPushToUser(p.user_id, {
+    // Expédition Web Push vers tous les participants destinataires avec attente garantie
+    try {
+      const { sendWebPushToUsers } = await import("@/lib/services/web-push.service");
+      const recipientIds = (participants as any[]).map((p) => p.user_id);
+      await sendWebPushToUsers(recipientIds, {
         title: `📩 Nouveau message — ${senderName}`,
         body: preview,
         url: `/messagerie/${conversationId}`,
         tag: `msg-${conversationId}`,
       });
+    } catch (err) {
+      console.warn("Échec d'envoi Web Push messagerie :", err);
     }
   }
 

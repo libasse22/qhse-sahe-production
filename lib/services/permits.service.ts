@@ -324,21 +324,20 @@ export async function createWorkPermit(params: {
     // Non-blocking history
   }
 
-  // Notification Web Push non-bloquante pour les valideurs / approbateurs (permission permits.approve)
+  // Notification Web Push garantie pour les valideurs / approbateurs
   try {
-    const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
+    const { sendWebPushToUsers } = await import("@/lib/services/web-push.service");
     const approverIds = await getApproverUserIds(supabase, user.id);
-
-    for (const approverId of approverIds) {
-      void sendWebPushToUser(approverId, {
+    if (approverIds && approverIds.length > 0) {
+      await sendWebPushToUsers(approverIds, {
         title: "📄 Permis de travail à valider",
         body: `Titre : ${params.title} (${reference})`,
         url: `/permis-de-travail/${data.id}`,
         tag: `ptw-${data.id}`,
       });
     }
-  } catch {
-    // Non-blocking
+  } catch (err) {
+    console.warn("Échec Web Push permis approbateurs :", err);
   }
 
   revalidatePath("/permis-de-travail");
@@ -633,19 +632,19 @@ export async function updateWorkPermitStatus(
     }
   }
 
-  // Notification Web Push au demandeur du permis
+  // Notification Web Push garantie au demandeur du permis
   if (currentPermit && (currentPermit as any).applicant_id) {
     try {
       const { sendWebPushToUser } = await import("@/lib/services/web-push.service");
       const statusLabel = status === "approuve" ? "Approuvé" : status === "refuse" ? "Refusé" : "Mis à jour";
-      void sendWebPushToUser((currentPermit as any).applicant_id, {
+      await sendWebPushToUser((currentPermit as any).applicant_id, {
         title: `📄 Permis de travail : ${statusLabel}`,
         body: `Référence : ${(currentPermit as any).reference} — ${(currentPermit as any).title}`,
         url: `/permis-de-travail/${permitId}`,
         tag: `ptw-status-${permitId}`,
       });
-    } catch {
-      // Non-blocking
+    } catch (err) {
+      console.warn("Échec Web Push permis demandeur :", err);
     }
   }
 
