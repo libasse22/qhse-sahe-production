@@ -59,7 +59,8 @@ export async function subscribePushDevice(
   );
 
   if (error) {
-    return { error: "Impossible d'enregistrer les clés Web Push." };
+    console.error("Erreur lors de l'upsert push_subscriptions :", error);
+    return { error: `Impossible d'enregistrer les clés Web Push: ${error.message}` };
   }
 
   return { error: null };
@@ -119,10 +120,23 @@ export async function sendWebPushToUser(
     if (!ensureVapidConfig()) return;
 
     const supabase = await createClient();
-    const { data: subscriptions } = await supabase
-      .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
-      .eq("user_id", userId);
+    let subscriptions: any[] | null = null;
+
+    // 1. Appel RPC Security Definer (bypass RLS pour l'envoi vers un autre utilisateur)
+    const { data: rpcData, error: rpcErr } = await supabase.rpc("get_push_subscriptions_for_user", {
+      p_user_id: userId,
+    });
+
+    if (!rpcErr && rpcData && rpcData.length > 0) {
+      subscriptions = rpcData;
+    } else {
+      // 2. Fallback query direct
+      const { data: directData } = await supabase
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .eq("user_id", userId);
+      subscriptions = directData;
+    }
 
     if (!subscriptions || subscriptions.length === 0) return;
 

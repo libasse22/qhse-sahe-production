@@ -23,6 +23,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+import { PushDiagnosticModal } from "@/components/notifications/push-diagnostic-modal";
+
 export function PushSubscriptionToggle() {
   const [isSupported, setIsSupported] = useState(true);
   const [permission, setPermission] = useState<string>("default");
@@ -33,6 +35,7 @@ export function PushSubscriptionToggle() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [diagOpen, setDiagOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -226,7 +229,16 @@ export function PushSubscriptionToggle() {
             : "Activez pour recevoir les alertes sur cet appareil."}
         </span>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setDiagOpen(true)}
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            🔍 Diagnostic Approfondi
+          </Button>
+
           {isSubscribed && (
             <Button
               onClick={handleSendTestPush}
@@ -259,6 +271,8 @@ export function PushSubscriptionToggle() {
           </Button>
         </div>
       </div>
+
+      <PushDiagnosticModal open={diagOpen} onClose={() => setDiagOpen(false)} />
     </div>
   );
 }
